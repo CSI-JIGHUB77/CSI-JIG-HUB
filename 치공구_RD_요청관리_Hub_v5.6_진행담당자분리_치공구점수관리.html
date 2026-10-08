@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>치공구 R&D 중앙 Hub v5.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary { list-style: none; }
+
+    /* 현재 담당자 드롭다운 옵션 가독성 개선: 글자색/배경색 대비 */
+    #current-user option {
+      background-color: #0f172a;
+      color: #ffffff;
+    }
+  
+    /* v5.4 로그인/권한 UI */
+    #login-overlay { backdrop-filter: blur(8px); }
+    .login-input { background:#0f172a; color:#fff; border:1px solid #334155; }
+    .login-input::placeholder { color:#64748b; }
+    .role-admin { color:#a5b4fc; background:rgba(99,102,241,.15); border-color:rgba(129,140,248,.35); }
+    .role-user { color:#86efac; background:rgba(34,197,94,.12); border-color:rgba(74,222,128,.3); }
+  </style>
+</head>
+<body class="text-slate-800 bg-slate-100 min-h-screen flex flex-col">
+  <!-- v5.4 로그인 화면 -->
+  <div id="login-overlay" class="fixed inset-0 z-[100] bg-slate-950/95 flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+      <div class="bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-slate-950 text-white px-7 py-7">
+          <div class="flex items-center gap-3">
+            <div class="p-3 bg-indigo-600 rounded-xl"><i class="fa-solid fa-microchip text-xl"></i></div>
+            <div>
+              <h2 class="font-extrabold text-lg">치공구 R&D 요청 관리 Hub</h2>
+              <p class="text-xs text-slate-400 mt-1">로그인 후 중앙 Hub를 이용해 주세요.</p>
+            </div>
+          </div>
+        </div>
+        <div class="p-7 space-y-5">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">로그인 ID</label>
+            <input id="login-id" type="text" autocomplete="username" placeholder="로그인 ID를 입력하세요" class="login-input w-full rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">비밀번호</label>
+            <input id="login-password" type="password" autocomplete="current-password" placeholder="비밀번호를 입력하세요" class="login-input w-full rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <label class="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+            <input id="remember-login" type="checkbox" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+            <span>이 PC에서 로그인 유지</span>
+          </label>
+          <button onclick="loginHub()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 transition">
+            <i class="fa-solid fa-right-to-bracket mr-2"></i>로그인
+          </button>
+          <div id="login-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl p-3"></div>
+          <div class="text-[10px] text-slate-400 leading-relaxed bg-slate-50 rounded-xl p-3">
+            <b>현재 버전 안내</b><br>이 HTML 버전은 로그인/권한 화면과 자동 로그인 흐름을 먼저 검증하는 단계입니다. 실제 Render 중앙 서비스에서 비밀번호를 안전하게 검증하려면 이후 서버 인증 연결이 필요합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- GNB 최상단 네비게이션 -->
+  <header class="bg-[#0f172a] text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="switchMainTab('dashboard')">
+        <div class="p-2 bg-indigo-600 rounded-lg text-white">
+          <i class="fa-solid fa-microchip text-lg"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="font-bold text-base leading-none">치공구 R&D 요청 관리 Hub</h1>
+            <span class="bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[10px] px-2 py-0.5 rounded-full font-semibold">v5.6 Central Hub</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Jig & Fixture Design Request & Operations Hub</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 text-xs text-slate-300">
+          <i class="fa-solid fa-user text-slate-400"></i>
+          <span>로그인 사용자:</span>
+          <span id="current-user-display" class="font-bold text-white">-</span>
+          <span id="current-role-badge" class="text-[9px] px-2 py-0.5 rounded-full border">-</span>
+          <button onclick="logoutHub()" title="로그아웃" class="ml-1 text-slate-400 hover:text-white"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+        <div class="flex items-center space-x-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 text-xs text-slate-300">
+          <i class="fa-regular fa-calendar text-slate-400"></i>
+          <span>대상 연도:</span>
+          <select id="year-select" onchange="renderApp()" class="bg-transparent font-bold text-white focus:outline-none cursor-pointer">
+            <option value="2026" class="bg-slate-900" selected>2026년</option>
+            <option value="2025" class="bg-slate-900">2025년</option>
+          </select>
+        </div>
+
+        <button onclick="openCreateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-4 py-2 rounded-lg transition shadow-md flex items-center space-x-1.5">
+          <i class="fa-solid fa-plus"></i>
+          <span>신규 요청 등록</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 바디 컨테이너 -->
+  <main class="max-w-[1440px] mx-auto px-6 py-6 flex-grow w-full space-y-6">
+
+    <!-- 상단 탭 & 검색바 컨트롤 영역 -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-2 bg-slate-200/70 p-1 rounded-xl">
+        <button id="tab-btn-dashboard" onclick="switchMainTab('dashboard')" class="px-4 py-2 text-xs font-bold rounded-lg transition shadow-sm bg-indigo-600 text-white flex items-center space-x-2">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>카테고리 요약 대시보드</span>
+        </button>
+        <button id="tab-btn-list" onclick="switchMainTab('list')" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-2">
+          <i class="fa-solid fa-list-check"></i>
+          <span>전체 요청 목록</span>
+        </button>
+        <button id="tab-btn-workload" onclick="switchMainTab('workload')" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-2">
+          <i class="fa-solid fa-users"></i>
+          <span>팀 업무 현황</span>
+        </button>
+        <button id="tab-btn-history" onclick="switchMainTab('history')" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-2">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>변경 이력</span>
+        </button>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <div class="relative w-64">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+          <input type="text" id="global-search" onkeyup="handleGlobalSearch(event)" placeholder="모델명, 담당자, 치공구명 검색..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3 py-2 rounded-lg transition shadow-sm flex items-center space-x-1.5">
+          <i class="fa-solid fa-file-excel"></i>
+          <span>엑셀 내보내기</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 1. 카테고리 요약 대시보드 뷰 -->
+    <div id="view-dashboard-section" class="space-y-6">
+      
+      <!-- 상단 4개 핵심 KPI 카드 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-semibold text-slate-500 block mb-1">총 치공구 요청</span>
+            <div class="text-2xl font-black text-slate-900" id="kpi-total">0 <span class="text-xs font-normal text-slate-400">건</span></div>
+          </div>
+          <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-layer-group"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-semibold text-slate-500 block mb-1">공식 발주서 접수율</span>
+            <div class="text-2xl font-black text-emerald-600" id="kpi-po-rate">0%</div>
+          </div>
+          <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-file-contract"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-semibold text-slate-500 block mb-1">진행중 / 긴급</span>
+            <div class="flex items-center space-x-2">
+              <span class="text-2xl font-black text-blue-600" id="kpi-in-progress">0</span>
+              <span id="kpi-urgent-badge" class="bg-amber-100 text-amber-800 text-[11px] font-bold px-2 py-0.5 rounded-md">긴급 0</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-semibold text-slate-500 block mb-1">완료 건수</span>
+            <div class="text-2xl font-black text-indigo-600" id="kpi-completed">0 <span class="text-xs font-normal text-slate-400">건</span></div>
+          </div>
+          <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 동적 카테고리 카드 그리드 영역 -->
+      <div>
+        <div class="mb-3">
+          <h3 class="font-bold text-sm text-slate-800 flex items-center space-x-2">
+            <i class="fa-solid fa-cubes text-indigo-600"></i>
+            <span>카테고리별 치공구 요청 현황 (자동 생성)</span>
+          </h3>
+          <p class="text-[11px] text-slate-500 mt-0.5">신규 카테고리가 접수되면 자동으로 대시보드와 그래프가 생성됩니다.</p>
+        </div>
+
+        <div id="category-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      </div>
+
+      <!-- 하단 차트 영역 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="font-bold text-xs text-slate-800 flex items-center space-x-1.5">
+              <i class="fa-solid fa-chart-column text-indigo-600"></i>
+              <span>카테고리별 요청 및 완료 현황</span>
+            </h4>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="font-bold text-xs text-slate-800 flex items-center space-x-1.5">
+              <i class="fa-solid fa-chart-pie text-indigo-600"></i>
+              <span>발주서 구분 비율</span>
+            </h4>
+          </div>
+          <div class="h-56 relative my-auto">
+            <canvas id="doughnutChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 2. 팀 업무 현황 -->
+    <div id="view-workload-section" class="hidden space-y-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200"><span class="text-xs text-slate-500">내 담당 요청</span><div id="my-kpi-requests" class="text-2xl font-black text-indigo-600 mt-1">0</div></div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200"><span class="text-xs text-slate-500">내 치공구</span><div id="my-kpi-tools" class="text-2xl font-black text-blue-600 mt-1">0</div></div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200"><span class="text-xs text-slate-500">내 완료</span><div id="my-kpi-completed" class="text-2xl font-black text-emerald-600 mt-1">0</div></div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200"><span class="text-xs text-slate-500">내 업무점수</span><div id="my-kpi-score" class="text-2xl font-black text-amber-600 mt-1">0</div></div>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-200 flex items-center justify-between gap-3"><div><h3 class="font-bold text-sm">담당자별 업무 현황</h3><p class="text-[11px] text-slate-400 mt-1">업무 배정 기능 없이 실제 담당자로 기록된 데이터를 기준으로 자동 집계합니다.</p></div><div class="flex items-center gap-2"><button onclick="openMemberManager()" data-admin-only class="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg font-bold"><i class="fa-solid fa-users-gear mr-1"></i>담당자 관리</button><button onclick="openScoreManager()" data-admin-only class="text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg font-bold"><i class="fa-solid fa-star mr-1"></i>치공구 점수 관리</button><span id="central-sync-badge" class="text-[10px] px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">중앙 DB 연결 전</span></div></div>
+        <div class="overflow-x-auto"><table class="w-full text-xs"><thead class="bg-slate-50 text-slate-500"><tr><th class="px-4 py-3 text-left">담당자</th><th>요청</th><th>치공구</th><th>진행중</th><th>완료</th><th>업무점수</th></tr></thead><tbody id="workload-table-body" class="divide-y divide-slate-100"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 3. 변경 이력 -->
+    <div id="view-history-section" class="hidden space-y-5">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-200"><h3 class="font-bold text-sm">중앙 Hub 변경 이력</h3><p class="text-[11px] text-slate-400 mt-1">요청 등록 및 상태/입고 변경 시 누가 처리했는지 기록합니다.</p></div>
+        <div id="history-list" class="divide-y divide-slate-100"></div>
+      </div>
+    </div>
+
+    <!-- 4. 전체 요청 목록 및 서브 상세 뷰 -->
+    <div id="view-list-section" class="hidden space-y-4">
+      <div id="sub-view-banner" class="hidden bg-slate-900 text-white p-4 rounded-2xl flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <button onclick="clearSubFilter()" class="p-2 hover:bg-slate-800 rounded-lg text-slate-300">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div>
+            <span id="sub-category-title" class="font-extrabold text-base text-indigo-400">카테고리</span>
+            <p class="text-xs text-slate-300">해당 카테고리의 발주 내역이 필터링되었습니다.</p>
+          </div>
+        </div>
+        <button onclick="clearSubFilter()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700">전체보기로 복귀</button>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+        <div class="p-4 border-b border-slate-200/80 flex items-center justify-between">
+          <h3 class="font-bold text-slate-800 text-xs flex items-center space-x-2">
+            <i class="fa-solid fa-table-list text-indigo-600"></i>
+            <span>치공구 요청 종합 내역</span>
+          </h3>
+          <span class="text-xs text-slate-400" id="list-count-badge">총 0건</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 text-slate-700 uppercase font-bold text-[11px] border-b border-slate-200">
+              <tr>
+                <th class="py-3.5 px-3">요청 ID</th>
+                <th class="py-3.5 px-3">시즌 / 카테고리</th>
+                <th class="py-3.5 px-3">모델명 (라운드)</th>
+                <th class="py-3.5 px-3">용도</th>
+                <th class="py-3.5 px-3">치공구명 (대표 / 더보기)</th>
+                <th class="py-3.5 px-3">담당자</th>
+                <th class="py-3.5 px-3">진행 담당자</th>
+                <th class="py-3.5 px-3">진행 상태</th>
+                <th class="py-3.5 px-3">납기일</th>
+                <th class="py-3.5 px-3 text-center">관리</th>
+              </tr>
+            </thead>
+            <tbody id="request-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 상세 정보 모달 -->
+  <div id="detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="handleBackdropClick(event, 'detail-modal')">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span id="detail-category-tag" class="px-2.5 py-0.5 text-xs font-bold rounded bg-indigo-500/30 text-indigo-300">카테고리</span>
+          <h3 id="detail-id" class="font-bold text-base">JIG-2026-000</h3>
+        </div>
+        <button onclick="closeModal('detail-modal')" class="text-slate-400 hover:text-white transition text-lg">&times;</button>
+      </div>
+      <div class="p-6 space-y-4 text-xs" id="detail-modal-content"></div>
+      <div class="bg-slate-50 px-6 py-3 border-t border-slate-200/80 flex justify-between items-center">
+        <button id="detail-delete-trigger" class="px-3.5 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded-lg transition flex items-center space-x-1">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>삭제하기</span>
+        </button>
+        <button onclick="closeModal('detail-modal')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 삭제 확인 모달 -->
+  <div id="delete-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="handleBackdropClick(event, 'delete-modal')">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 text-center">
+      <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-lg">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">요청건 삭제 확인</h3>
+        <p class="text-xs text-slate-500 mt-1">선택한 치공구 요청건을 정말 삭제하시겠습니까?</p>
+      </div>
+      <div id="delete-target-info" class="p-3 bg-slate-100 rounded-lg text-xs font-semibold text-slate-700"></div>
+      <div class="flex space-x-2 pt-2">
+        <button onclick="closeModal('delete-modal')" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition">취소</button>
+        <button id="confirm-delete-btn" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs transition shadow-md">삭제하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 신규 등록 모달 (멀티 치공구 분할 입력 & 스마트 파싱 기능) -->
+  <div id="form-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="handleBackdropClick(event, 'form-modal')">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-paste text-indigo-400"></i>
+          <h3 class="font-bold text-base">신규 치공구 요청 등록 (메일·텍스트 스마트 붙여넣기)</h3>
+        </div>
+        <button onclick="closeModal('form-modal')" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+
+      <div class="p-6 overflow-y-auto custom-scrollbar space-y-4 text-xs flex-grow">
+        
+        <!-- 메일/텍스트 스마트 분석 -->
+        <div class="bg-indigo-50/70 border border-indigo-200 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-indigo-900 flex items-center space-x-1.5">
+              <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+              <span>스마트 자동 입력</span>
+            </span>
+            <span class="text-[11px] text-indigo-600">메일 또는 엑셀 파일을 넣으면 자동 분석합니다.</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- 메일/텍스트 -->
+            <div class="bg-white border border-indigo-100 rounded-lg p-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-700">
+                  <i class="fa-solid fa-envelope text-indigo-500 mr-1"></i>메일 / 텍스트
+                </span>
+                <span class="text-[10px] text-slate-400">전체 본문 붙여넣기</span>
+              </div>
+              <textarea id="smart-text-input" rows="6"
+                placeholder="메일 본문 전체를 그대로 붙여넣어 주세요.&#10;시즌 / 모델 / 라운드 / 사이즈 / 담당자 / 납기일 / 치공구 목록을 자동 인식합니다."
+                class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+              <div class="flex justify-end">
+                <button type="button" onclick="parseSmartText()"
+                  class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-lg transition shadow-sm flex items-center space-x-1.5">
+                  <i class="fa-solid fa-bolt"></i>
+                  <span>메일 자동 분석</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 엑셀 -->
+            <div class="bg-white border border-emerald-100 rounded-lg p-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-700">
+                  <i class="fa-solid fa-file-excel text-emerald-600 mr-1"></i>엑셀 발주요청서
+                </span>
+                <span class="text-[10px] text-slate-400">.xlsx / .xls / .xlsm / .xlsb / .csv</span>
+              </div>
+
+              <label id="excel-drop-zone" for="excel-file-input"
+                class="w-full min-h-[118px] border-2 border-dashed border-emerald-200 rounded-lg bg-emerald-50/50 hover:bg-emerald-50 transition cursor-pointer flex flex-col items-center justify-center text-center px-3">
+                <i class="fa-solid fa-cloud-arrow-up text-emerald-600 text-2xl mb-2"></i>
+                <span id="excel-drop-title" class="font-bold text-emerald-800">엑셀 파일 선택 또는 마우스로 끌어놓기</span>
+                <span class="text-[10px] text-slate-500 mt-1">.xlsx / .xls / .xlsm / .xlsb / .csv 파일을 이곳에 드래그하면 바로 분석합니다.<br>파일 안의 셀 위치가 달라도 항목명(시즌/모델명/치공구 종류 등)을 기준으로 분석</span>
+              </label>
+              <input id="excel-file-input" type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.csv" class="hidden" onchange="parseExcelFile(event)">
+
+              <div id="excel-parse-status" class="hidden rounded-lg border px-3 py-2 text-[11px]"></div>
+
+              <div class="flex justify-end">
+                <button type="button" onclick="document.getElementById('excel-file-input').click()"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-lg transition shadow-sm flex items-center space-x-1.5">
+                  <i class="fa-solid fa-file-import"></i>
+                  <span>엑셀 다시 선택</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-[10px] text-indigo-700 bg-indigo-100/70 rounded-lg px-3 py-2">
+            <i class="fa-solid fa-circle-info mr-1"></i>
+            엑셀의 <b>시즌 / 모델명 / 라운드 / 사이즈 / 담당자 / 용도 / 카테고리 / 입고일</b>과
+            <b>치공구 종류 / 수량 / 단위</b>를 자동으로 찾아 입력합니다. 치공구가 여러 줄이면 각각 별도 요청으로 자동 분할합니다.
+          </div>
+        </div>
+
+        <form id="request-form" onsubmit="handleFormSubmit(event)" class="space-y-3.5">
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">시즌 (SEASON) *</label>
+              <input type="text" id="form-season" placeholder="예: HO27" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">카테고리 *</label>
+              <input type="text" id="form-category" list="category-list" placeholder="예: Running" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <datalist id="category-list"></datalist>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">용도 *</label>
+              <input type="text" id="form-purpose" placeholder="예: CDC" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">모델명 *</label>
+              <input type="text" id="form-model" placeholder="예: ZOOM FLY 7" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">라운드 *</label>
+              <input type="text" id="form-round" placeholder="예: GGP" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">발주서 담당자 성명 *</label>
+              <input type="text" id="form-requester-name" placeholder="예: 허세민" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">실제 진행 담당자 *</label>
+              <select id="form-handler-name" required title="로그인한 사용자가 자동 지정됩니다." class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"></select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">사이즈 *</label>
+              <input type="text" id="form-size" placeholder="예: W8, M10" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">발주서 접수 형태 *</label>
+              <select id="form-po-status" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="공식 발주서 (Excel)">공식 발주서 (Excel)</option>
+                <option value="메일 요청" selected>메일 요청</option>
+                <option value="구두 요청">구두 요청</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 치공구 정보 (종류 및 수량) -->
+          <div class="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="col-span-2">
+              <label class="block font-bold text-slate-600 mb-1">치공구 종류 *</label>
+              <input type="text" id="form-tool-name" placeholder="예: PAD 목형 (준비 멀티 2차 옵션용)" required class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">수량 *</label>
+              <div class="flex items-center space-x-1">
+                <input type="number" id="form-quantity" value="2" min="1" required class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <span id="form-unit" class="text-slate-500 font-bold">EA</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">진행 상태 *</label>
+              <select id="form-status" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="설계중">설계중</option>
+                <option value="가공중">가공중</option>
+                <option value="완료">제작완료 / 입고대기</option>
+                <option value="입고대기">입고대기</option>
+                <option value="입고완료">입고완료</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">긴급 여부</label>
+              <select id="form-is-urgent" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="false">일반</option>
+                <option value="true">⚡ 긴급 요청</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 mb-1">입고 요청일 (납기일) *</label>
+              <input type="date" id="form-due-date" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">요청 상세 사양 및 비고</label>
+            <textarea id="form-description" rows="2" placeholder="메일 내용 붙여넣기 자동 연동" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+          </div>
+
+          <div class="pt-3 flex justify-end space-x-2 border-t border-slate-200">
+            <button type="button" onclick="closeModal('form-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition">취소</button>
+            <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md">저장하기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 입고 처리 모달 -->
+  <div id="receive-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4" onclick="handleBackdropClick(event, 'receive-modal')">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="bg-emerald-700 text-white px-6 py-4 flex items-center justify-between">
+        <div>
+          <div class="text-[10px] text-emerald-200 font-bold mb-1">치공구 입고 처리</div>
+          <h3 id="receive-modal-title" class="font-bold text-base">입고 처리</h3>
+        </div>
+        <button onclick="closeModal('receive-modal')" class="text-emerald-100 hover:text-white text-lg">&times;</button>
+      </div>
+      <div class="p-6 space-y-4 text-xs">
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2">
+          <div class="flex justify-between"><span class="text-slate-500">요청 ID</span><strong id="receive-request-id" class="font-mono text-indigo-700"></strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">치공구</span><strong id="receive-tool-name" class="text-slate-800 text-right max-w-[260px]"></strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">발주 수량</span><strong id="receive-order-qty" class="text-indigo-600"></strong></div>
+        </div>
+        <input type="hidden" id="receive-item-id">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">입고 수량 *</label>
+            <input type="number" id="receive-qty" min="0" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">입고일 *</label>
+            <input type="date" id="receive-date" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">검수 상태</label>
+          <select id="receive-inspection" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <option value="정상">정상</option>
+            <option value="부분입고">부분입고</option>
+            <option value="불량/재작업">불량 / 재작업</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">입고 비고</label>
+          <textarea id="receive-note" rows="3" placeholder="입고 수량, 검수 내용, 특이사항 등을 입력하세요." class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"></textarea>
+        </div>
+      </div>
+      <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end gap-2">
+        <button onclick="closeModal('receive-modal')" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold rounded-lg">취소</button>
+        <button onclick="saveReceiveStatus()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm"><i class="fa-solid fa-check mr-1"></i>입고 완료 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 담당자 관리 모달 -->
+  <div id="member-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="handleBackdropClick(event,'member-modal')">
+    <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div><h3 class="font-extrabold text-base text-slate-800"><i class="fa-solid fa-users-gear text-indigo-600 mr-2"></i>담당자 관리</h3><p class="text-[11px] text-slate-400 mt-1">사용중지/퇴사 처리해도 기존 업무 기록은 삭제되지 않습니다.</p></div>
+        <button onclick="closeModal('member-modal')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <div class="flex-1"><label class="block text-[11px] font-bold text-slate-500 mb-1">담당자 이름</label><input id="member-name-input" type="text" maxlength="20" placeholder="예: 김철수" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></div>
+          <button onclick="addMember()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold"><i class="fa-solid fa-plus mr-1"></i>담당자 추가</button>
+        </div>
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <div class="grid grid-cols-[1fr_100px_240px] bg-slate-50 px-4 py-3 text-[11px] font-bold text-slate-500"><div>담당자</div><div>상태</div><div class="text-right">관리</div></div>
+          <div id="member-list" class="divide-y divide-slate-100"></div>
+        </div>
+        <div class="text-[11px] text-slate-500 bg-indigo-50 border border-indigo-100 rounded-xl p-3 leading-relaxed"><b class="text-indigo-700">관리 원칙</b> · 사용중지/퇴사는 이름과 과거 실적을 유지합니다. 신규 요청에는 사용중인 담당자만 표시됩니다. 퇴사자의 미완료 업무는 <b>업무 인수</b>로 다른 담당자에게 넘길 수 있고, 완료된 과거 실적은 기존 담당자 기록으로 남습니다.</div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-200 text-right"><button onclick="closeModal('member-modal')" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-bold">닫기</button></div>
+    </div>
+  </div>
+
+  <!-- 치공구 점수 관리 모달 -->
+  <div id="score-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="handleBackdropClick(event,'score-modal')">
+    <div class="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div>
+          <h3 class="font-extrabold text-base text-slate-800"><i class="fa-solid fa-star text-amber-500 mr-2"></i>치공구 점수 관리</h3>
+          <p class="text-[11px] text-slate-400 mt-1">치공구 항목을 추가·수정·삭제하고 키워드와 기본 점수를 관리합니다. 삭제하거나 사용중지해도 기존 업무에 저장된 점수는 유지됩니다.</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="startNewScoreRule()" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg text-[11px] font-bold shadow-sm"><i class="fa-solid fa-plus mr-1"></i>항목 추가</button>
+          <button onclick="closeModal('score-modal')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-800 leading-relaxed">
+          <b>점수 계산 기준</b> · 기본 점수 × 발주 수량으로 업무점수를 계산합니다. 예: 기본 2점 × 2 EA = 4점. 신규 등록 시 적용된 기본점수는 해당 업무에 저장되어 이후 점수표를 수정해도 과거 실적은 유지됩니다.
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <div class="grid grid-cols-1 md:grid-cols-[1.2fr_2fr_110px_auto] gap-2 items-end">
+            <div><label class="block text-[11px] font-bold text-slate-500 mb-1">치공구 항목</label><input id="score-name-input" maxlength="40" placeholder="예: 톰슨발형" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none"></div>
+            <div><label class="block text-[11px] font-bold text-slate-500 mb-1">키워드 <span class="font-normal text-slate-400">(쉼표로 구분)</span></label><input id="score-keywords-input" maxlength="200" placeholder="예: THOMSON, 톰슨, 톰슨발형" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none"></div>
+            <div><label class="block text-[11px] font-bold text-slate-500 mb-1">기본 점수</label><input id="score-base-input" type="number" min="0" step="0.5" value="1" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none"></div>
+            <div class="flex gap-2"><button id="score-save-btn" onclick="saveScoreRule()" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i>항목 추가</button><button id="score-cancel-btn" onclick="cancelScoreRuleEdit()" class="hidden bg-white border border-slate-300 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold">취소</button></div>
+          </div>
+        </div>
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <div class="grid grid-cols-[1.2fr_2fr_100px_90px_180px] bg-slate-50 px-4 py-3 text-[11px] font-bold text-slate-500 gap-2"><div>치공구 항목</div><div>적용 키워드</div><div class="text-center">기본 점수</div><div class="text-center">상태</div><div class="text-right">관리</div></div>
+          <div id="score-rule-list" class="divide-y divide-slate-100"></div>
+        </div>
+        <div class="text-[11px] text-slate-500 bg-indigo-50 border border-indigo-100 rounded-xl p-3 leading-relaxed"><b class="text-indigo-700">관리 원칙</b> · <b>항목 추가</b>로 새로운 치공구를 계속 등록할 수 있습니다. <b>사용중지</b>는 신규 자동 판정에서만 제외하고 기존 실적을 보존합니다. <b>삭제</b>는 점수 기준표에서 해당 항목을 완전히 제거하지만, 이미 업무에 저장된 점수·점수 기준명은 그대로 유지됩니다. 키워드는 치공구명 자동 판정에 사용되며, 키워드가 겹치는 경우 더 구체적인 항목을 위에 배치해 주세요.</div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-200 text-right"><button onclick="closeModal('score-modal')" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-bold">닫기</button></div>
+    </div>
+  </div>
+
+  <script>
+    let mockData = [
+      { 
+        id: "JIG-2026-001-01", requestId: "JIG-2026-001", year: "2026", category: "RUNNING", season: "HO27", model: "ZOOM FLY 7", 
+        round: "GGP", size: "W8, M10", purpose: "CDC", requesterName: "허세민", handlerName: "김경수", poStatus: "메일 요청", 
+        toolName: "PAD 목형 (준비 멀티 2차 옵션용)", quantity: "2 EA", status: "설계중", arrivalStatus: "미입고", receivedQty: 0, receivedDate: "", inspectionStatus: "", receivingNote: "", isUrgent: false, dueDate: "2026-09-14", description: "메일 복사 붙여넣기 연동 샘플 건" 
+      }
+    ];
+
+    let currentMainTab = "dashboard";
+    let currentUser = localStorage.getItem("jigHubCurrentUser") || "김경수";
+    let historyData = JSON.parse(localStorage.getItem("jigHubHistory") || "[]");
+    const DEFAULT_MEMBERS = ["김경수","허세민","홍길동","이○○","박○○"].map((name, i) => ({ id: `M${String(i+1).padStart(3,'0')}`, name, status: "사용중", createdAt: new Date().toISOString().slice(0,10) }));
+    let memberData = loadMemberData();
+
+    // v5.4: 로그인/권한 (현재 HTML 검증용). 실제 중앙 서비스에서는 Render 서버 인증으로 교체합니다.
+    let authUser = null;
+    const DEMO_ACCOUNTS = {
+      "kskim": { name: "김경수", password: "1234", role: "관리자", memberId: "M001" },
+      "hsemin": { name: "허세민", password: "1234", role: "일반 사용자", memberId: "M002" },
+      "hong": { name: "홍길동", password: "1234", role: "일반 사용자", memberId: "M003" },
+      "lee": { name: "이○○", password: "1234", role: "일반 사용자", memberId: "M004" },
+      "park": { name: "박○○", password: "1234", role: "일반 사용자", memberId: "M005" }
+    };
+
+    function getSavedLogin() {
+      try { return JSON.parse(localStorage.getItem('jigHubAuthSession') || 'null'); } catch(e) { return null; }
+    }
+    function applyAuth(user) {
+      authUser = user;
+      currentUser = user.name;
+      localStorage.setItem('jigHubCurrentUser', currentUser);
+      const d = document.getElementById('current-user-display');
+      const b = document.getElementById('current-role-badge');
+      if (d) d.textContent = user.name;
+      if (b) { b.textContent = user.role; b.className = 'text-[9px] px-2 py-0.5 rounded-full border ' + (user.role === '관리자' ? 'role-admin' : 'role-user'); }
+      const overlay = document.getElementById('login-overlay');
+      if (overlay) overlay.classList.add('hidden');
+      enforcePermissions();
+      refreshHandlerOptions();
+      const handlerEl = document.getElementById('form-handler-name');
+      if (handlerEl) { handlerEl.value = currentUser; handlerEl.readOnly = true; handlerEl.classList.add('bg-slate-100'); }
+    }
+    function loginHub() {
+      const id = (document.getElementById('login-id')?.value || '').trim().toLowerCase();
+      const pw = document.getElementById('login-password')?.value || '';
+      const error = document.getElementById('login-error');
+      const account = DEMO_ACCOUNTS[id];
+      if (!account || account.password !== pw) {
+        if (error) { error.textContent = '로그인 ID 또는 비밀번호가 올바르지 않습니다.'; error.classList.remove('hidden'); }
+        return;
+      }
+      if (error) error.classList.add('hidden');
+      const keep = document.getElementById('remember-login')?.checked;
+      if (keep) localStorage.setItem('jigHubAuthSession', JSON.stringify({id, name:account.name, role:account.role, memberId:account.memberId}));
+      else localStorage.removeItem('jigHubAuthSession');
+      applyAuth({id, name:account.name, role:account.role, memberId:account.memberId});
+      renderApp();
+    }
+    function logoutHub() {
+      localStorage.removeItem('jigHubAuthSession');
+      authUser = null;
+      const overlay = document.getElementById('login-overlay');
+      if (overlay) overlay.classList.remove('hidden');
+      const pw = document.getElementById('login-password'); if (pw) pw.value = '';
+      document.getElementById('login-id')?.focus();
+    }
+    function enforcePermissions() {
+      const admin = authUser?.role === '관리자';
+      document.querySelectorAll('[data-admin-only]').forEach(el => { el.classList.toggle('hidden', !admin); });
+    }
+
+    function loadMemberData() {
+      try {
+        const saved = localStorage.getItem("jigHubMembers");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length) return parsed;
+        }
+      } catch(e) { console.warn("담당자 정보 복원 실패", e); }
+      return DEFAULT_MEMBERS;
+    }
+
+    function saveMemberData() { localStorage.setItem("jigHubMembers", JSON.stringify(memberData)); }
+    function activeMembers() { return memberData.filter(m => m.status === "사용중"); }
+    function getMemberById(id) { return memberData.find(m => m.id === id); }
+    function getMemberByName(name) { return memberData.find(m => m.name === name); }
+    function getMemberNameByItem(item) {
+      if (item && item.handlerId) { const m = getMemberById(item.handlerId); if (m) return m.name; }
+      return item?.handlerName || "미지정";
+    }
+    function getHandlerIdByName(name) { return getMemberByName(name)?.id || ""; }
+    function refreshHandlerOptions() {
+      const options = activeMembers().map(m => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)}</option>`).join('');
+      const current = document.getElementById('current-user');
+      const form = document.getElementById('form-handler-name');
+      if (current) { current.innerHTML = options; if (activeMembers().some(m => m.name === currentUser)) current.value = currentUser; else if (activeMembers()[0]) { currentUser = activeMembers()[0].name; current.value = currentUser; localStorage.setItem('jigHubCurrentUser', currentUser); } }
+      if (form) { const prev = form.value || currentUser; form.innerHTML = options; form.value = activeMembers().some(m => m.name === prev) ? prev : currentUser; }
+    }
+
+    function migrateHandlerIds() {
+      let changed = false;
+      mockData.forEach(item => {
+        if (!item.handlerId && item.handlerName) { const id = getHandlerIdByName(item.handlerName); if (id) { item.handlerId = id; changed = true; } }
+      });
+      if (changed) persistLocalHubState();
+    }
+    let subCategoryFilter = null;
+    let searchKeyword = "";
+    let barChartInstance = null;
+    let doughnutChartInstance = null;
+    // 하나의 발주 요청에 여러 치공구가 포함될 때 사용하는 임시 분석 결과
+    let pendingParsedRequest = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadLocalHubState();
+      ensureWorkScoreSnapshots();
+      migrateHandlerIds();
+      refreshHandlerOptions();
+      const savedAuth = getSavedLogin();
+      if (savedAuth && DEMO_ACCOUNTS[savedAuth.id] && DEMO_ACCOUNTS[savedAuth.id].name === savedAuth.name) {
+        applyAuth(savedAuth);
+      } else {
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+      }
+      const handlerEl = document.getElementById("form-handler-name");
+      if (handlerEl) { handlerEl.value = currentUser; handlerEl.readOnly = true; handlerEl.classList.add('bg-slate-100'); }
+      renderApp();
+      enforcePermissions();
+      setupExcelDropZone();
+      document.getElementById('login-password')?.addEventListener('keydown', e => { if (e.key === 'Enter') loginHub(); });
+      document.getElementById('login-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-password')?.focus(); });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeModal("detail-modal");
+          closeModal("delete-modal");
+          closeModal("form-modal");
+          closeModal("receive-modal");
+        }
+      });
+    });
+
+    // ============================================================
+    // 요청 단위 그룹 관리
+    // 한 번의 메일/엑셀 발주 요청 = 1개의 Request ID
+    // 치공구가 여러 개여도 같은 Request ID 아래에 묶습니다.
+    // ============================================================
+    function getRequestGroups(data) {
+      const map = new Map();
+      (data || []).forEach(item => {
+        const requestId = item.requestId || item.id;
+        if (!map.has(requestId)) {
+          map.set(requestId, {
+            requestId,
+            items: [],
+            season: item.season || '',
+            category: item.category || '',
+            model: item.model || '',
+            round: item.round || '',
+            size: item.size || '',
+            purpose: item.purpose || '',
+            requesterName: item.requesterName || '',
+            handlerName: item.handlerName || '',
+            poStatus: item.poStatus || '',
+            dueDate: item.dueDate || '',
+            description: item.description || '',
+            year: item.year || '',
+            isUrgent: !!item.isUrgent
+          });
+        }
+        const group = map.get(requestId);
+        group.items.push(item);
+        if (item.isUrgent) group.isUrgent = true;
+        if (!group.description && item.description) group.description = item.description;
+      });
+      return Array.from(map.values());
+    }
+
+    function getGroupStatus(group) {
+      const items = group.items || [];
+      if (!items.length) return '설계중';
+      const received = items.filter(x => x.arrivalStatus === '입고완료' || Number(x.receivedQty || 0) >= parseOrderQty(x.quantity));
+      if (received.length === items.length) return '입고완료';
+      if (items.some(x => x.arrivalStatus === '부분입고' || Number(x.receivedQty || 0) > 0)) return '부분입고';
+      if (items.every(x => x.status === '완료' || x.status === '입고대기')) return '입고대기';
+      if (items.includes && items.some(x => x.status === '가공중')) return '가공중';
+      return '설계중';
+    }
+
+    function parseOrderQty(value) {
+      const m = String(value || '').match(/(\d+(?:\.\d+)?)/);
+      return m ? Number(m[1]) : 0;
+    }
+
+    function getReceivedQty(item) {
+      return Number(item.receivedQty || 0);
+    }
+
+    function getArrivalStatus(item) {
+      const ordered = parseOrderQty(item.quantity);
+      const received = getReceivedQty(item);
+      if (item.arrivalStatus === '입고완료' || (ordered > 0 && received >= ordered)) return '입고완료';
+      if (received > 0 || item.arrivalStatus === '부분입고') return '부분입고';
+      return '미입고';
+    }
+
+    function getDynamicCategories(data) {
+      return Array.from(new Set(getRequestGroups(data).map(d => (d.category || '').toUpperCase()).filter(Boolean)));
+    }
+
+    function renderApp() {
+      refreshHandlerOptions();
+      const selectedYear = document.getElementById('year-select').value;
+      const yearFilteredData = mockData.filter(d => d.year === selectedYear);
+
+      renderKPIs(yearFilteredData);
+      renderCategoryCards(yearFilteredData);
+      renderCharts(yearFilteredData);
+      renderTable(yearFilteredData);
+      renderWorkload(yearFilteredData);
+      renderHistory();
+      updateCategoryDatalist(yearFilteredData);
+    }
+
+    function updateCategoryDatalist(data) {
+      const cats = getDynamicCategories(data);
+      document.getElementById('category-list').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+    }
+
+    function renderKPIs(data) {
+      const groups = getRequestGroups(data);
+      const total = groups.length;
+      const poOfficialCount = groups.filter(d => String(d.poStatus || '').startsWith('공식 발주서')).length;
+      const poRate = total > 0 ? Math.round((poOfficialCount / total) * 100) : 0;
+      const inProgress = groups.filter(d => getGroupStatus(d) === '설계중' || getGroupStatus(d) === '가공중').length;
+      const urgentCount = groups.filter(d => d.isUrgent).length;
+      const completed = groups.filter(d => getGroupStatus(d) === '입고완료').length;
+
+      document.getElementById('kpi-total').innerText = total;
+      document.getElementById('kpi-po-rate').innerText = poRate + '%';
+      document.getElementById('kpi-in-progress').innerText = inProgress;
+      document.getElementById('kpi-urgent-badge').innerText = `긴급 ${urgentCount}`;
+      document.getElementById('kpi-completed').innerText = completed;
+    }
+
+    function renderCategoryCards(data) {
+      const grid = document.getElementById('category-cards-grid');
+      const groups = getRequestGroups(data);
+      const categories = getDynamicCategories(data);
+
+      if (categories.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400">등록된 카테고리 내역이 없습니다.</div>`;
+        return;
+      }
+
+      grid.innerHTML = categories.map(cat => {
+        const catItems = groups.filter(d => (d.category || '').toUpperCase() === cat);
+        const total = catItems.length;
+        const officialPO = catItems.filter(d => String(d.poStatus || '').startsWith('공식 발주서')).length;
+        const poRate = total > 0 ? Math.round((officialPO / total) * 100) : 0;
+        const inProgressCount = catItems.filter(d => getGroupStatus(d) === '설계중' || getGroupStatus(d) === '가공중').length;
+        const completedCount = catItems.filter(d => getGroupStatus(d) === '입고완료').length;
+        const urgentCount = catItems.filter(d => d.isUrgent).length;
+
+        const progressPercent = total > 0 ? Math.round((inProgressCount / total) * 100) : 0;
+        const completePercent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+
+        return `
+          <div onclick="drillDownCategory('${escapeHtml(cat)}')" class="bg-white rounded-2xl p-4 border border-slate-200/85 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between group">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center space-x-2">
+                  <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs group-hover:bg-indigo-600 group-hover:text-white transition">
+                    <i class="fa-solid fa-folder-open"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-xs text-slate-800 group-hover:text-indigo-600 transition">${escapeHtml(cat)}</h4>
+                    <span class="text-[10px] text-slate-400">발주서 접수율 ${poRate}%</span>
+                  </div>
+                </div>
+                <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-2 py-0.5 rounded-full">${total} 건</span>
+              </div>
+
+              <div class="flex items-center justify-between text-[11px] font-medium text-slate-500 my-2">
+                <span>진행중: <strong class="text-slate-800">${inProgressCount}</strong></span>
+                <span>완료: <strong class="text-emerald-600">${completedCount}</strong></span>
+                ${urgentCount > 0 ? `<span class="text-red-600 font-bold">⚡ 긴급 ${urgentCount}</span>` : ''}
+              </div>
+
+              <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden flex my-2">
+                <div class="bg-blue-500 h-full" style="width: ${progressPercent}%"></div>
+                <div class="bg-emerald-500 h-full" style="width: ${completePercent}%"></div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-indigo-600">
+              <span>상세 내역 확인</span>
+              <i class="fa-solid fa-chevron-right text-[9px]"></i>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCharts(data) {
+      const groups = getRequestGroups(data);
+      const categories = getDynamicCategories(data);
+      const barCtx = document.getElementById('barChart').getContext('2d');
+      const totalArr = categories.map(c => groups.filter(d => (d.category || '').toUpperCase() === c).length);
+      const completedArr = categories.map(c => groups.filter(d => (d.category || '').toUpperCase() === c && getGroupStatus(d) === '입고완료').length);
+
+      if (barChartInstance) barChartInstance.destroy();
+      barChartInstance = new Chart(barCtx, {
+        type: 'bar',
+        data: { labels: categories, datasets: [
+          { label: '총 요청 건수', data: totalArr, backgroundColor: '#6366f1', borderRadius: 4 },
+          { label: '완료 건수', data: completedArr, backgroundColor: '#10b981', borderRadius: 4 }
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+
+      const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+      const poExcel = groups.filter(d => d.poStatus === '공식 발주서 (Excel)').length;
+      const poMail = groups.filter(d => d.poStatus === '메일 요청').length;
+      const poOral = groups.filter(d => d.poStatus === '구두 요청').length;
+
+      if (doughnutChartInstance) doughnutChartInstance.destroy();
+      doughnutChartInstance = new Chart(doughnutCtx, {
+        type: 'doughnut',
+        data: { labels: ['공식 발주서 (Excel)', '메일 요청', '구두 요청'], datasets: [{
+          data: [poExcel, poMail, poOral], backgroundColor: ['#059669', '#3b82f6', '#f59e0b'],
+          borderWidth: 2, borderColor: '#ffffff'
+        }]},
+        options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+      });
+    }
+
+    function renderTable(data) {
+      let displayGroups = getRequestGroups(data);
+
+      if (subCategoryFilter) {
+        displayGroups = displayGroups.filter(d => (d.category || '').toUpperCase() === subCategoryFilter.toUpperCase());
+      }
+
+      if (searchKeyword.trim() !== '') {
+        const kw = searchKeyword.toLowerCase();
+        displayGroups = displayGroups.filter(g => {
+          const toolText = g.items.map(x => `${x.toolName || ''} ${x.quantity || ''}`).join(' ');
+          return [g.requestId, g.model, g.requesterName, g.handlerName, g.season, g.purpose, g.category, g.round, g.size, toolText]
+            .some(v => String(v || '').toLowerCase().includes(kw));
+        });
+      }
+
+      document.getElementById('list-count-badge').innerText = `총 ${displayGroups.length}건`;
+      const tbody = document.getElementById('request-table-body');
+
+      if (displayGroups.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">조회된 치공구 요청 내역이 없습니다.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = displayGroups.map(group => {
+        const status = getGroupStatus(group);
+        const firstTool = group.items[0] || {};
+        const remainingTools = group.items.slice(1);
+
+        // 종합 목록에서는 첫 번째 치공구만 대표로 보여주고,
+        // 2건 이상이면 나머지는 접힌 상태의 드롭다운으로 표시합니다.
+        const toolSummary = `
+          <div class="space-y-1" onclick="event.stopPropagation()">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="font-medium text-slate-800 truncate" title="${escapeHtml(firstTool.toolName || '')}">${escapeHtml(firstTool.toolName || '')}</span>
+              <span class="text-indigo-600 font-bold ml-auto whitespace-nowrap">${escapeHtml(firstTool.quantity || '')}</span>
+            </div>
+            ${remainingTools.length > 0 ? `
+              <div class="mt-1.5">
+                <button type="button" data-request-id="${escapeHtml(group.requestId)}" onclick="toggleToolMoreFromButton(this, event)" class="w-full text-left flex items-center gap-1.5 text-[10px] text-indigo-600 font-bold hover:text-indigo-800 py-0.5 rounded">
+                  <i id="tool-more-icon-${String(group.requestId).replace(/[^a-zA-Z0-9_-]/g, '_')}" class="fa-solid fa-chevron-right text-[8px] transition-transform"></i>
+                  <span>외 ${remainingTools.length}건</span>
+                  <span id="tool-more-label-${String(group.requestId).replace(/[^a-zA-Z0-9_-]/g, '_')}" class="text-slate-400 font-normal">펼쳐보기</span>
+                </button>
+                <div id="tool-more-${String(group.requestId).replace(/[^a-zA-Z0-9_-]/g, '_')}" class="hidden mt-1.5 ml-4 pl-2 border-l-2 border-indigo-100 space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                  ${remainingTools.map((item, idx) => `
+                    <div class="flex items-start gap-1.5">
+                      <span class="text-[10px] text-slate-400 font-bold min-w-[16px]">${idx + 2}.</span>
+                      <span class="font-medium text-slate-700 truncate" title="${escapeHtml(item.toolName || '')}">${escapeHtml(item.toolName || '')}</span>
+                      <span class="text-indigo-600 font-bold ml-auto whitespace-nowrap">${escapeHtml(item.quantity || '')}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>`;
+
+        return `
+        <tr class="hover:bg-slate-50 transition cursor-pointer align-top" onclick="openDetailModal('${escapeHtml(group.requestId)}')">
+          <td class="py-3 px-3 font-mono font-bold text-indigo-700 whitespace-nowrap">${escapeHtml(group.requestId)}<span class="block text-[10px] text-slate-400 font-sans mt-1">치공구 ${group.items.length}건</span></td>
+          <td class="py-3 px-3">
+            <span class="font-bold text-slate-800">${escapeHtml(group.season)}</span>
+            <span class="block text-[10px] text-slate-500">${escapeHtml(group.category)}</span>
+          </td>
+          <td class="py-3 px-3 font-semibold text-slate-900">
+            ${escapeHtml(group.model)} <span class="text-slate-400 font-normal">(${escapeHtml(group.round)})</span>
+            <span class="block text-[10px] text-slate-500">사이즈: ${escapeHtml(group.size)}</span>
+          </td>
+          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-purple-50 text-purple-700 border border-purple-200">${escapeHtml(group.purpose)}</span></td>
+          <td class="py-3 px-3 min-w-[280px]">${toolSummary}</td>
+          <td class="py-3 px-3 min-w-[120px] font-medium text-slate-700">${escapeHtml(group.requesterName || '-')}</td>
+          <td class="py-3 px-3 min-w-[120px] font-bold text-indigo-700">${escapeHtml(group.handlerName || '-')}</td>
+          <td class="py-3 px-3">${getStatusBadge(status)}</td>
+          <td class="py-3 px-3 font-mono text-[11px]">${escapeHtml(group.dueDate)}</td>
+          <td class="py-3 px-3 text-center space-x-1" onclick="event.stopPropagation()">
+            <button onclick="openDetailModal('${escapeHtml(group.requestId)}')" class="p-1 text-indigo-600 hover:bg-indigo-50 rounded" title="발주 요청 상세"><i class="fa-solid fa-eye"></i></button>
+            <button onclick="promptDelete('${escapeHtml(group.requestId)}')" class="p-1 text-red-600 hover:bg-red-50 rounded" title="요청 전체 삭제"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function getStatusBadge(status) {
+      switch(status) {
+        case '설계중': return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">설계중</span>`;
+        case '가공중': return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">가공중</span>`;
+        case '완료': return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">제작완료</span>`;
+        case '입고대기': return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">입고대기</span>`;
+        case '부분입고': return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700">부분입고</span>`;
+        case '입고완료': return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">입고완료</span>`;
+        default: return status;
+      }
+    }
+
+    // ============================================================
+    // 스마트 입력 엔진
+    // 1) 메일/텍스트 파서
+    // 2) Excel/CSV 발주요청서 파서
+    // 3) 공통 데이터 정규화 + 다중 치공구 자동 분할
+    // ============================================================
+
+    const FIELD_ALIASES = {
+      // 메일과 엑셀 양식에서 실제로 사용되는 표현을 모두 포함합니다.
+      season: ["시즌(SEASON)", "시즌 (SEASON)", "시즌", "SEASON", "세션"],
+      category: ["카테고리", "CATEGORY", "분류", "CATEGORY NAME"],
+      purpose: ["용도", "PURPOSE", "사용용도", "사용 용도"],
+      model: ["모델명", "MODEL", "MODEL NAME", "모델", "MODEL명"],
+      round: ["라운드", "ROUND"],
+      size: ["사이즈", "SIZE", "SIZE(S)", "사이즈(S)", "SIZE S"],
+      requesterName: ["담당자", "담당자 성명", "담당자성명", "성명", "REQUESTER", "요청자"],
+      dueDate: ["입고 요청일", "입고요청일", "입고일", "납기일", "요청일", "DUE DATE", "DUE"],
+      poStatus: ["발주서 접수 형태", "발주서 형태", "접수 형태", "PO STATUS"]
+    };
+
+    function cleanCellValue(value) {
+      if (value === null || value === undefined) return "";
+      return String(value)
+        .replace(/\u00a0/g, " ")
+        .replace(/\r/g, "")
+        .replace(/[ \t]+/g, " ")
+        .trim();
+    }
+
+    function normalizeLabel(value) {
+      return cleanCellValue(value)
+        .replace(/[\s:*：=\-_/\.]+/g, "")
+        .replace(/[()［］\[\]{}]/g, "")
+        .toUpperCase();
+    }
+
+    function isFieldLabel(value, aliases) {
+      const v = normalizeLabel(value);
+      return aliases.some(a => v === normalizeLabel(a));
+    }
+
+    function normalizeDate(value) {
+      let v = cleanCellValue(value);
+      if (!v) return "";
+
+      // YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD
+      let m = v.match(/(20\d{2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})/);
+      if (m) return `${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
+
+      // YYYY년 MM월 DD일
+      m = v.match(/(20\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
+      if (m) return `${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
+
+      // Excel serial number
+      if (/^\d{4,6}(\.\d+)?$/.test(v) && window.XLSX) {
+        const n = Number(v);
+        if (n > 20000 && n < 60000) {
+          const d = XLSX.SSF.parse_date_code(n);
+          if (d && d.y) {
+            return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
+          }
+        }
+      }
+      return v;
+    }
+
+    function normalizeQuantity(value) {
+      const v = cleanCellValue(value);
+      if (!v) return "";
+      const m = v.match(/(\d+(?:\.\d+)?)/);
+      return m ? m[1] : v;
+    }
+
+    function normalizeUnit(value) {
+      const v = cleanCellValue(value).toUpperCase();
+      if (!v) return "EA";
+      if (v.includes("PRS") || v.includes("PAIR") || v.includes("켤레")) return "PRS";
+      if (v.includes("SET")) return "SET";
+      if (v.includes("EA") || v.includes("개")) return "EA";
+      return v;
+    }
+
+    function extractValueFromText(text, aliases) {
+      const lines = String(text || "")
+        .replace(/\r/g, "")
+        .split("\n");
+
+      for (const rawLine of lines) {
+        // 메일의 "- 시즌 : HO27", "■ 모델명 : ZOOM FLY 7" 같은 표기를 제거합니다.
+        const line = rawLine
+          .replace(/^\s*(?:[-*•·▪■▶▷]+\s*)+/, "")
+          .trim();
+        if (!line) continue;
+
+        for (const alias of aliases) {
+          const safe = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const re = new RegExp(
+            `^\\s*${safe}\\s*(?:[:：=]\\s*|\\s+)(.+?)\\s*$`,
+            "i"
+          );
+          const m = line.match(re);
+          if (m && m[1]) {
+            return cleanCellValue(m[1]).replace(/[\t ]+$/g, "");
+          }
+        }
+      }
+      return "";
+    }
+
+    function parseToolLineDetails(lineText) {
+      let clean = cleanCellValue(lineText).replace(/^\s*\d+[\.\)]\s*/, "");
+
+      let qty = "";
+      let unit = "EA";
+
+      // (2 EA), (2 PRS), 2 EA, 2 PRS
+      let qtyMatch = clean.match(/\(\s*(\d+(?:\.\d+)?)\s*(EA|PRS|PAIR|SET|개|켤레)?\s*\)\s*$/i);
+      if (!qtyMatch) {
+        qtyMatch = clean.match(/(?:^|\s)(\d+(?:\.\d+)?)\s*(EA|PRS|PAIR|SET|개|켤레)\s*$/i);
+      }
+      if (qtyMatch) {
+        qty = qtyMatch[1];
+        unit = normalizeUnit(qtyMatch[2] || "EA");
+        clean = clean.replace(qtyMatch[0], "").trim();
+      }
+
+      let sizeExt = "";
+      const sizeMatch = clean.match(/\(\s*([WM]\s*\d+(?:\.\d+)?)\s*\)\s*$/i);
+      if (sizeMatch) {
+        sizeExt = sizeMatch[1].replace(/\s+/g, "").toUpperCase();
+        clean = clean.replace(sizeMatch[0], "").trim();
+      }
+
+      clean = clean.replace(/^[\(\[]|[\)\]]$/g, "").trim();
+
+      return {
+        name: clean,
+        size: sizeExt,
+        qty: qty || "1",
+        unit
+      };
+    }
+
+    function getNextNonEmptyCell(row, index) {
+      for (let i = index + 1; i < row.length; i++) {
+        const v = cleanCellValue(row[i]);
+        if (v) return v;
+      }
+      return "";
+    }
+
+    function findLabeledValue(rows, aliases) {
+      // 1) 같은 행에서 [라벨][값] 구조를 가장 먼저 찾습니다.
+      for (const row of rows) {
+        const cells = row || [];
+        for (let i = 0; i < cells.length; i++) {
+          if (!isFieldLabel(cells[i], aliases)) continue;
+
+          // 바로 오른쪽 셀
+          for (let j = i + 1; j < Math.min(cells.length, i + 4); j++) {
+            const v = cleanCellValue(cells[j]);
+            if (v && !isFieldLabel(v, aliases)) return v;
+          }
+        }
+      }
+
+      // 2) [라벨] 다음 행/다다음 행의 같은 열
+      for (let r = 0; r < rows.length; r++) {
+        const row = rows[r] || [];
+        for (let c = 0; c < row.length; c++) {
+          if (!isFieldLabel(row[c], aliases)) continue;
+          for (let rr = r + 1; rr < Math.min(rows.length, r + 4); rr++) {
+            const v = cleanCellValue((rows[rr] || [])[c]);
+            if (v) return v;
+          }
+        }
+      }
+
+      // 3) 병합셀/복잡한 양식 대비: 전체 셀을 문자열로 연결해 "라벨 : 값" 탐색
+      const flatText = rows.flat().map(cleanCellValue).filter(Boolean).join(" | ");
+      for (const alias of aliases) {
+        const safe = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const m = flatText.match(new RegExp(`${safe}\\s*[:：=]\\s*([^|]+)`, "i"));
+        if (m && m[1]) return cleanCellValue(m[1]);
+      }
+      return "";
+    }
+
+    function findToolTable(rows) {
+      let headerRowIndex = -1;
+      let nameCol = -1;
+      let qtyCol = -1;
+      let unitCol = -1;
+
+      // 정확한 헤더 찾기: "치공구 종류 / 수량 / 단위"
+      for (let r = 0; r < rows.length; r++) {
+        const row = rows[r] || [];
+        let n = -1, q = -1, u = -1;
+        row.forEach((v, c) => {
+          const label = normalizeLabel(v);
+          if (["치공구종류", "치공구", "TOOLNAME", "TOOL", "공구종류"].includes(label)) n = c;
+          if (["수량", "QTY", "QUANTITY"].includes(label)) q = c;
+          if (["단위", "UNIT"].includes(label)) u = c;
+        });
+        if (n >= 0 && q >= 0) {
+          headerRowIndex = r;
+          nameCol = n;
+          qtyCol = q;
+          unitCol = u;
+          break;
+        }
+      }
+
+      // 병합셀/띄어쓰기 등으로 정확히 안 잡히는 경우 보조 탐색
+      if (headerRowIndex < 0) {
+        for (let r = 0; r < rows.length; r++) {
+          const row = rows[r] || [];
+          const joined = row.map(cleanCellValue).join(" ");
+          if (/치공구\s*종류/i.test(joined) && /수량/i.test(joined)) {
+            headerRowIndex = r;
+            nameCol = row.findIndex(v => /치공구\s*종류/i.test(cleanCellValue(v)));
+            qtyCol = row.findIndex(v => /^\s*(수량|QTY|QUANTITY)\s*$/i.test(cleanCellValue(v)));
+            unitCol = row.findIndex(v => /^\s*(단위|UNIT)\s*$/i.test(cleanCellValue(v)));
+            break;
+          }
+        }
+      }
+
+      if (headerRowIndex < 0 || nameCol < 0 || qtyCol < 0) return [];
+
+      const tools = [];
+      let blankStreak = 0;
+
+      for (let r = headerRowIndex + 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const name = cleanCellValue(row[nameCol]);
+        const qtyRaw = cleanCellValue(row[qtyCol]);
+        const unitRaw = unitCol >= 0 ? cleanCellValue(row[unitCol]) : "";
+        const rowText = row.map(cleanCellValue).join(" ");
+
+        if (/^(고유\s*ID|고유ID|관리ID|관리\s*ID|바코드|담당자\s*이메일|담당자이메일|그외|관리코드)$/i.test(name) || /^(REQ[-_][A-Z0-9-]+)$/i.test(name)) break;
+
+        if (!name) {
+          if (row.every(v => !cleanCellValue(v))) {
+            blankStreak++;
+            if (tools.length > 0 && blankStreak >= 2) break;
+          }
+          continue;
+        }
+        blankStreak = 0;
+
+        if (/^(치공구\s*종류|합계|TOTAL|비고)$/i.test(name)) continue;
+
+        const parsedInline = parseToolLineDetails(name);
+        const qty = normalizeQuantity(qtyRaw) || parsedInline.qty || "1";
+        const unit = normalizeUnit(unitRaw || parsedInline.unit);
+
+        tools.push({
+          name: parsedInline.name || name,
+          size: parsedInline.size || "",
+          qty,
+          unit
+        });
+      }
+
+      return tools;
+    }
+
+    function parseExcelRows(rows, sheetName) {
+      const compactRows = rows.map(row => (row || []).map(cleanCellValue));
+
+      const data = {
+        season: findLabeledValue(compactRows, FIELD_ALIASES.season),
+        category: findLabeledValue(compactRows, FIELD_ALIASES.category),
+        purpose: findLabeledValue(compactRows, FIELD_ALIASES.purpose),
+        model: findLabeledValue(compactRows, FIELD_ALIASES.model),
+        round: findLabeledValue(compactRows, FIELD_ALIASES.round),
+        size: findLabeledValue(compactRows, FIELD_ALIASES.size),
+        requesterName: findLabeledValue(compactRows, FIELD_ALIASES.requesterName),
+        dueDate: normalizeDate(findLabeledValue(compactRows, FIELD_ALIASES.dueDate)),
+        poStatus: findLabeledValue(compactRows, FIELD_ALIASES.poStatus) || "공식 발주서",
+        tools: findToolTable(compactRows),
+        sourceSheet: sheetName
+      };
+
+      // 담당자 표기가 'TE 팀 허세민입니다' 형태인 경우
+      if (!data.requesterName) {
+        const allText = compactRows.flat().join("\n");
+        const nameMatch = allText.match(/(?:TE\s*팀|팀)?\s*([가-힣]{2,4})\s*(?:입니다|님)/i);
+        if (nameMatch) data.requesterName = nameMatch[1].trim();
+      }
+
+      // 용도/카테고리 값 정리
+      data.category = (data.category || "").replace(/^카테고리\s*[:：]\s*/i, "").trim();
+      data.purpose = (data.purpose || "").replace(/^용도\s*[:：]\s*/i, "").trim();
+
+      // 실제 발주요청서에서 자주 쓰이는 "시즌(SEASON)" 표기 보강
+      if (!data.season) {
+        for (const row of compactRows) {
+          for (let i = 0; i < row.length; i++) {
+            if (/^\s*시즌\s*\(\s*SEASON\s*\)\s*$/i.test(row[i])) {
+              const next = row.slice(i + 1).map(cleanCellValue).find(Boolean);
+              if (next) { data.season = next; break; }
+            }
+          }
+          if (data.season) break;
+        }
+      }
+
+      return data;
+    }
+
+    function mergeParsedExcelSheets(sheetResults) {
+      // 가장 정보가 많은 시트를 메인으로 선택
+      if (!sheetResults.length) return null;
+      sheetResults.sort((a, b) => {
+        const score = x =>
+          ["season","category","purpose","model","round","size","requesterName","dueDate"].filter(k => x[k]).length
+          + x.tools.length * 2;
+        return score(b) - score(a);
+      });
+
+      const base = sheetResults[0];
+      const allTools = [];
+
+      // 중요: 엑셀의 치공구 표는 같은 치공구명/수량/단위가 반복되어도
+      // 각각 별도의 치공구 항목입니다.
+      // 예: 톰슨발형 2 EA + 톰슨발형 2 EA = 총 2건으로 유지해야 합니다.
+      // 기존 중복 제거 로직은 동일한 행을 하나로 합쳐버려
+      // 화면에 대표 1건만 표시되는 원인이 되었으므로 제거합니다.
+      sheetResults.forEach(s => {
+        (s.tools || []).forEach(t => {
+          allTools.push({ ...t });
+        });
+      });
+
+      base.tools = allTools;
+      return base;
+    }
+
+    function showExcelStatus(message, type = "success") {
+      const el = document.getElementById("excel-parse-status");
+      if (!el) return;
+      el.classList.remove("hidden", "bg-emerald-50", "text-emerald-700", "border-emerald-200",
+                          "bg-red-50", "text-red-700", "border-red-200",
+                          "bg-amber-50", "text-amber-700", "border-amber-200");
+      if (type === "error") {
+        el.classList.add("bg-red-50", "text-red-700", "border-red-200");
+      } else if (type === "warning") {
+        el.classList.add("bg-amber-50", "text-amber-700", "border-amber-200");
+      } else {
+        el.classList.add("bg-emerald-50", "text-emerald-700", "border-emerald-200");
+      }
+      el.innerHTML = message;
+    }
+
+    function fillCommonFields(data) {
+      const mapping = {
+        season: "form-season",
+        category: "form-category",
+        purpose: "form-purpose",
+        model: "form-model",
+        round: "form-round",
+        size: "form-size",
+        requesterName: "form-requester-name",
+        dueDate: "form-due-date",
+        poStatus: "form-po-status"
+      };
+
+      Object.entries(mapping).forEach(([key, id]) => {
+        if (data[key]) document.getElementById(id).value = data[key];
+      });
+
+      if (data.purpose) document.getElementById("form-purpose").value = data.purpose.toUpperCase();
+      if (data.category) document.getElementById("form-category").value = data.category;
+    }
+
+    function addParsedToolRecords(data, sourceText, startIndex = 1) {
+      // v3.7부터는 분석 단계에서 목록에 바로 저장하지 않습니다.
+      // 저장 버튼을 눌렀을 때 모든 치공구가 하나의 Request ID로 함께 등록됩니다.
+      return 0;
+    }
+
+    function fillFirstTool(tool) {
+      if (!tool) return;
+      document.getElementById('form-tool-name').value = tool.name || '';
+      document.getElementById('form-quantity').value = tool.qty || 1;
+      document.getElementById('form-unit').innerText = tool.unit || 'EA';
+      if (tool.size) document.getElementById('form-size').value = tool.size;
+    }
+
+    function applyParsedData(data, sourceText, sourceType) {
+      fillCommonFields(data);
+
+      if (sourceType === 'excel') {
+        document.getElementById('form-description').value =
+          `[엑셀 자동 분석 / ${data.sourceSheet || 'Sheet1'}]\n` + (sourceText || '');
+      } else {
+        document.getElementById('form-description').value = sourceText || '';
+      }
+
+      if (data.tools && data.tools.length > 0) {
+        // 분석 결과 전체를 임시 보관. 실제 저장은 [저장하기]에서 한 번에 수행합니다.
+        pendingParsedRequest = {
+          sourceType,
+          sourceText: sourceText || '',
+          tools: data.tools.map(t => ({ ...t }))
+        };
+        fillFirstTool(data.tools[0]);
+
+        if (sourceType === 'excel') {
+          showExcelStatus(
+            `<b>엑셀 분석 완료</b> · ${data.sourceSheet || 'Sheet1'} · ` +
+            `공통정보 ${countParsedFields(data)}개 · 치공구 ${data.tools.length}건 · <b>저장 대기</b>`,
+            'success'
+          );
+        }
+
+        renderApp();
+        return { tools: data.tools.length, added: 0 };
+      }
+
+      pendingParsedRequest = null;
+
+      if (sourceType === 'excel') {
+        showExcelStatus(
+          `<b>엑셀은 읽었지만 치공구 표를 찾지 못했습니다.</b><br>` +
+          `파일 안의 '치공구 종류 / 수량 / 단위' 제목을 확인해 주세요.`,
+          'warning'
+        );
+      }
+
+      renderApp();
+      return { tools: 0, added: 0 };
+    }
+
+    function countParsedFields(data) {
+      return ["season","category","purpose","model","round","size","requesterName","dueDate"]
+        .filter(k => data[k]).length;
+    }
+
+    // 메일/텍스트 전체 분석
+    function parseSmartText() {
+      const text = document.getElementById("smart-text-input").value;
+      if (!text.trim()) {
+        alert("분석할 메일 내용을 입력(붙여넣기)해 주세요.");
+        return;
+      }
+
+      const extractField = (aliases) => extractValueFromText(text, aliases);
+
+      const season = extractField(FIELD_ALIASES.season);
+      const category = extractField(FIELD_ALIASES.category);
+      const purpose = extractField(FIELD_ALIASES.purpose);
+      const model = extractField(FIELD_ALIASES.model);
+      const round = extractField(FIELD_ALIASES.round);
+      const size = extractField(FIELD_ALIASES.size);
+      const dueDate = normalizeDate(extractField(FIELD_ALIASES.dueDate));
+      let requester = extractField(FIELD_ALIASES.requesterName);
+
+      if (!requester) {
+        const nameMatch = text.match(/(?:TE\s*팀|팀)?\s*([가-힣]{2,4})\s*(?:입니다|님)/i);
+        if (nameMatch) requester = nameMatch[1].trim();
+      }
+
+      const toolLines = text.match(/^\s*\d+[\.\)]\s*(.+)$/gm) || [];
+      const tools = toolLines.map(parseToolLineDetails).filter(t => t.name);
+
+      const data = {
+        season, category, purpose, model, round, size,
+        requesterName: requester,
+        dueDate,
+        poStatus: "메일 요청",
+        tools,
+        sourceSheet: ""
+      };
+
+      const result = applyParsedData(data, text, "mail");
+
+      const missing = [];
+      const required = {
+        season: "시즌", category: "카테고리", purpose: "용도", model: "모델명",
+        round: "라운드", size: "사이즈", requesterName: "담당자", dueDate: "입고일"
+      };
+      Object.entries(required).forEach(([key, label]) => { if (!data[key]) missing.push(label); });
+
+      if (missing.length) {
+        alert(`메일 분석 완료\n\n입력된 항목: ${8 - missing.length}/8\n치공구: ${tools.length}건\n\n찾지 못한 항목: ${missing.join(", ")}\n\n확인 후 저장해 주세요.`);
+      } else if (tools.length > 1) {
+        alert(`메일 분석 완료!\n총 ${tools.length}건의 치공구를 인식했습니다.\n\n현재 화면은 첫 번째 치공구를 보여주며, [저장하기]를 누르면 ${tools.length}건 전체가 하나의 요청 ID로 함께 등록됩니다.`);
+      } else {
+        alert("메일 내용이 분석되어 입력창에 반영되었습니다.");
+      }
+    }
+
+    // Excel / XLS / CSV 파일 분석
+    async function parseExcelFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      await parseExcelFileObject(file);
+      event.target.value = "";
+    }
+
+    async function parseExcelFileObject(file) {
+      if (!file) return;
+      const fileName = String(file.name || "").trim();
+      const fileType = String(file.type || "").toLowerCase();
+      const extOk = /\.(xlsx|xls|xlsm|xlsb|csv)$/i.test(fileName);
+      const mimeOk = /spreadsheet|excel|csv|ms-excel|officedocument/i.test(fileType);
+      // v3.8은 파일 확장자를 강제로 검사하지 않았으므로, v4에서도
+      // 정상적인 Excel MIME 형식이나 Excel 확장자를 가진 파일은 모두 허용합니다.
+      // (특히 사내 저장/메일 시스템에서 .xlsm 또는 확장자가 변형된 파일을 고려)
+      if (!extOk && !mimeOk) {
+        showExcelStatus("<b>지원하지 않는 파일 형식입니다.</b><br>Excel 파일(.xlsx / .xls / .xlsm / .xlsb / .csv)을 넣어 주세요.", "error");
+        return;
+      }
+      if (typeof XLSX === "undefined") {
+        showExcelStatus("엑셀 분석 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.", "error");
+        return;
+      }
+      showExcelStatus(`<i class="fa-solid fa-spinner fa-spin mr-1"></i> <b>${escapeHtml(file.name)}</b> 분석 중...`, "warning");
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: true, cellNF: true, cellText: true });
+        const sheetResults = [];
+        workbook.SheetNames.forEach(sheetName => {
+          const sheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false, blankrows: true });
+          if (rows.length) sheetResults.push(parseExcelRows(rows, sheetName));
+        });
+        const data = mergeParsedExcelSheets(sheetResults);
+        if (!data) { showExcelStatus("분석할 수 있는 엑셀 데이터가 없습니다.", "error"); return; }
+        // v3.8의 엑셀 인식 엔진은 그대로 유지하고, 접수 형태만 Excel로 명확히 구분합니다.
+        data.poStatus = "공식 발주서 (Excel)";
+        const allText = workbook.SheetNames.map(name => {
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: "", raw: false });
+          return `[${name}]\n` + rows.map(r => r.join(" | ")).join("\n");
+        }).join("\n\n");
+        applyParsedData(data, allText, "excel");
+        const required = {season:"시즌",model:"모델명",round:"라운드",size:"사이즈",requesterName:"담당자",dueDate:"입고일",category:"카테고리",purpose:"용도"};
+        const missing = Object.entries(required).filter(([key]) => !data[key]).map(([,label]) => label);
+        if (missing.length) {
+          showExcelStatus(`<b>엑셀 분석 완료 · 일부 항목 확인 필요</b><br>찾지 못한 항목: ${missing.join(", ")}<br>치공구 ${data.tools.length}건 인식`, "warning");
+        } else {
+          showExcelStatus(`<b>엑셀 분석 완료</b> · ${data.sourceSheet || "Sheet1"} · 공통정보 ${countParsedFields(data)}개 · 치공구 ${data.tools.length}건 · <b>저장 대기</b>`, "success");
+        }
+      } catch (err) {
+        console.error(err);
+        showExcelStatus(`<b>엑셀 분석 실패</b><br>${escapeHtml(err.message || "알 수 없는 오류")}`, "error");
+      }
+    }
+
+    function setupExcelDropZone() {
+      const zone = document.getElementById("excel-drop-zone");
+      if (!zone) return;
+      ["dragenter", "dragover"].forEach(type => zone.addEventListener(type, e => {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.add("border-emerald-500", "bg-emerald-100", "scale-[1.01]");
+        const title = document.getElementById("excel-drop-title");
+        if (title) title.textContent = "여기에 파일을 놓아주세요";
+      }));
+      ["dragleave", "dragend"].forEach(type => zone.addEventListener(type, e => {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.remove("border-emerald-500", "bg-emerald-100", "scale-[1.01]");
+        const title = document.getElementById("excel-drop-title");
+        if (title) title.textContent = "엑셀 파일 선택 또는 마우스로 끌어놓기";
+      }));
+      zone.addEventListener("drop", async e => {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.remove("border-emerald-500", "bg-emerald-100", "scale-[1.01]");
+        const title = document.getElementById("excel-drop-title");
+        if (title) title.textContent = "엑셀 파일 선택 또는 마우스로 끌어놓기";
+        const files = Array.from(e.dataTransfer.files || []);
+        const file = files.find(f => { const n=String(f.name||"").trim(); const t=String(f.type||"").toLowerCase(); return /\.(xlsx|xls|xlsm|xlsb|csv)$/i.test(n) || /spreadsheet|excel|csv|ms-excel|officedocument/i.test(t); });
+        if (!file) {
+          showExcelStatus("<b>엑셀 파일을 찾지 못했습니다.</b><br>.xlsx / .xls / .xlsm / .xlsb / .csv 파일을 끌어다 놓아 주세요.", "error");
+          return;
+        }
+        await parseExcelFileObject(file);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function switchMainTab(tab) {
+      currentMainTab = tab;
+      ["dashboard","list","workload","history"].forEach(name => {
+        const section = document.getElementById(`view-${name}-section`);
+        if (section) section.classList.toggle("hidden", name !== tab);
+        const btn = document.getElementById(`tab-btn-${name}`);
+        if (btn) {
+          btn.classList.toggle("bg-indigo-600", name === tab);
+          btn.classList.toggle("text-white", name === tab);
+          btn.classList.toggle("shadow-sm", name === tab);
+          btn.classList.toggle("font-bold", name === tab);
+          btn.classList.toggle("text-slate-600", name !== tab);
+        }
+      });
+      renderApp();
+    }
+
+    function setCurrentUser(name) {
+      if (authUser) { currentUser = authUser.name; localStorage.setItem('jigHubCurrentUser', currentUser); return; }
+      const m = getMemberByName(name);
+      currentUser = (m && m.status === "사용중") ? m.name : (activeMembers()[0]?.name || "");
+      localStorage.setItem("jigHubCurrentUser", currentUser);
+      const handlerEl = document.getElementById("form-handler-name");
+      if (handlerEl) handlerEl.value = currentUser;
+      renderApp();
+    }
+
+    function loadLocalHubState() {
+      try {
+        const saved = localStorage.getItem("jigHubMockData");
+        if (saved) mockData = JSON.parse(saved);
+      } catch(e) { console.warn("Hub 데이터 복원 실패", e); }
+    }
+
+    function persistLocalHubState() {
+      localStorage.setItem("jigHubMockData", JSON.stringify(mockData));
+      localStorage.setItem("jigHubHistory", JSON.stringify(historyData.slice(0, 500)));
+    }
+
+    function addHistory(requestId, actor, action, detail) {
+      historyData.unshift({
+        id: Date.now() + Math.random(),
+        requestId, actor: actor || currentUser, action, detail,
+        timestamp: new Date().toLocaleString('ko-KR', {hour12:false})
+      });
+      historyData = historyData.slice(0, 500);
+    }
+
+    const DEFAULT_SCORE_RULES = [
+      { id:'S001', name:'AIRBAG / PRESS JIG', keywords:['AIRBAG','PRESS','PRESSING'], baseScore:4, status:'사용중' },
+      { id:'S002', name:'일반 JIG / FIXTURE', keywords:['JIG','FIXTURE','치구','지그'], baseScore:2, status:'사용중' },
+      { id:'S003', name:'톰슨발형', keywords:['THOMSON','톰슨','톰슨발형'], baseScore:1, status:'사용중' }
+    ];
+    let scoreRuleData = loadScoreRuleData();
+    let editingScoreRuleId = null;
+
+    function loadScoreRuleData() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('jigHubScoreRules') || 'null');
+        if (Array.isArray(saved) && saved.length) return saved;
+      } catch(e) { console.warn('치공구 점수 기준 복원 실패', e); }
+      return DEFAULT_SCORE_RULES.map(x => ({...x, keywords:[...x.keywords]}));
+    }
+
+    function saveScoreRuleData() { localStorage.setItem('jigHubScoreRules', JSON.stringify(scoreRuleData)); }
+    function activeScoreRules() { return scoreRuleData.filter(r => r.status === '사용중'); }
+
+    function normalizeScoreKeywords(value) {
+      return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
+    }
+
+    function findScoreRule(toolName) {
+      const upperName = String(toolName || '').toUpperCase();
+      return activeScoreRules().find(rule => rule.keywords.some(keyword => upperName.includes(String(keyword).toUpperCase())));
+    }
+
+    function calculateScoreFields(toolName, quantity) {
+      const rule = findScoreRule(toolName);
+      const qty = Math.max(1, Number(quantity) || 1);
+      return {
+        workScoreRuleId: rule?.id || '',
+        workScoreRuleName: rule?.name || '기본 점수',
+        workScoreBase: Number(rule?.baseScore || 1),
+        workScore: Number(rule?.baseScore || 1) * qty
+      };
+    }
+
+    function ensureWorkScoreSnapshots() {
+      let changed = false;
+      mockData.forEach(item => {
+        if (typeof item.workScore !== 'number') {
+          Object.assign(item, calculateScoreFields(item.toolName, parseOrderQty(item.quantity)));
+          changed = true;
+        }
+      });
+      if (changed) persistLocalHubState();
+    }
+
+    function getWorkScore(item) {
+      if (typeof item.workScore === 'number') return item.workScore;
+      return calculateScoreFields(item.toolName, parseOrderQty(item.quantity)).workScore;
+    }
+
+    function openScoreManager() {
+      if (authUser?.role !== '관리자') { alert('치공구 점수 관리는 관리자만 사용할 수 있습니다.'); return; }
+      editingScoreRuleId = null;
+      resetScoreRuleForm();
+      renderScoreRuleManager();
+      openModal('score-modal');
+    }
+
+    function resetScoreRuleForm() {
+      const n=document.getElementById('score-name-input'), k=document.getElementById('score-keywords-input'), b=document.getElementById('score-base-input');
+      if (n) n.value=''; if (k) k.value=''; if (b) b.value='1';
+      const save=document.getElementById('score-save-btn'), cancel=document.getElementById('score-cancel-btn');
+      if (save) save.innerHTML='<i class="fa-solid fa-plus mr-1"></i>항목 추가';
+      if (cancel) cancel.classList.add('hidden');
+      editingScoreRuleId=null;
+    }
+
+    function cancelScoreRuleEdit() { resetScoreRuleForm(); }
+
+    function renderScoreRuleManager() {
+      const el=document.getElementById('score-rule-list'); if (!el) return;
+      el.innerHTML=scoreRuleData.map(rule=>{
+        const badge=rule.status==='사용중' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200';
+        const actions=rule.status==='사용중'
+          ? `<button onclick="editScoreRule('${rule.id}')" class="px-2 py-1 text-[10px] border border-slate-200 rounded-md hover:bg-slate-50 font-bold">수정</button><button onclick="deactivateScoreRule('${rule.id}')" class="px-2 py-1 text-[10px] border border-amber-200 text-amber-700 rounded-md hover:bg-amber-50 font-bold">사용중지</button><button onclick="deleteScoreRule('${rule.id}')" class="px-2 py-1 text-[10px] border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-bold">삭제</button>`
+          : `<button onclick="editScoreRule('${rule.id}')" class="px-2 py-1 text-[10px] border border-slate-200 rounded-md hover:bg-slate-50 font-bold">수정</button><button onclick="reactivateScoreRule('${rule.id}')" class="px-2 py-1 text-[10px] border border-emerald-200 text-emerald-700 rounded-md hover:bg-emerald-50 font-bold">다시 사용</button><button onclick="deleteScoreRule('${rule.id}')" class="px-2 py-1 text-[10px] border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-bold">삭제</button>`;
+        return `<div class="grid grid-cols-[1.2fr_2fr_100px_90px_180px] items-center px-4 py-3 gap-2"><div><div class="font-bold text-xs text-slate-800">${escapeHtml(rule.name)}</div><div class="text-[9px] text-slate-400">${escapeHtml(rule.id)}</div></div><div class="text-[10px] text-slate-600 break-words">${escapeHtml((rule.keywords||[]).join(', '))}</div><div class="text-center font-black text-amber-600">${Number(rule.baseScore)}</div><div class="text-center"><span class="inline-flex px-2 py-1 rounded-full border text-[9px] font-bold ${badge}">${rule.status}</span></div><div class="flex justify-end gap-1 flex-wrap">${actions}</div></div>`;
+      }).join('');
+    }
+
+    function saveScoreRule() {
+      if (authUser?.role !== '관리자') return;
+      const name=document.getElementById('score-name-input').value.trim();
+      const keywords=normalizeScoreKeywords(document.getElementById('score-keywords-input').value);
+      const baseScore=Number(document.getElementById('score-base-input').value);
+      if (!name) { alert('치공구 항목명을 입력해 주세요.'); return; }
+      if (!keywords.length) { alert('자동 판정에 사용할 키워드를 1개 이상 입력해 주세요.'); return; }
+      if (!Number.isFinite(baseScore) || baseScore < 0) { alert('기본 점수는 0 이상 숫자로 입력해 주세요.'); return; }
+      if (editingScoreRuleId) {
+        const rule=scoreRuleData.find(r=>r.id===editingScoreRuleId); if (!rule) return;
+        rule.name=name; rule.keywords=keywords; rule.baseScore=baseScore;
+        alert('치공구 점수 항목이 수정되었습니다.');
+      } else {
+        const maxNo=scoreRuleData.reduce((mx,r)=>Math.max(mx,Number(String(r.id).replace(/\D/g,''))||0),0);
+        scoreRuleData.push({id:`S${String(maxNo+1).padStart(3,'0')}`,name,keywords,baseScore,status:'사용중'});
+        alert('치공구 점수 항목이 추가되었습니다.');
+      }
+      saveScoreRuleData(); resetScoreRuleForm(); renderScoreRuleManager();
+    }
+
+    function editScoreRule(id) {
+      const rule=scoreRuleData.find(r=>r.id===id); if (!rule) return;
+      editingScoreRuleId=id;
+      document.getElementById('score-name-input').value=rule.name;
+      document.getElementById('score-keywords-input').value=(rule.keywords||[]).join(', ');
+      document.getElementById('score-base-input').value=rule.baseScore;
+      document.getElementById('score-save-btn').innerHTML='<i class="fa-solid fa-floppy-disk mr-1"></i>수정 저장';
+      document.getElementById('score-cancel-btn').classList.remove('hidden');
+    }
+
+    function startNewScoreRule() {
+      if (authUser?.role !== '관리자') return;
+      resetScoreRuleForm();
+      const name = document.getElementById('score-name-input');
+      if (name) name.focus();
+    }
+
+    function deleteScoreRule(id) {
+      if (authUser?.role !== '관리자') return;
+      const index = scoreRuleData.findIndex(r => r.id === id);
+      if (index < 0) return;
+      const rule = scoreRuleData[index];
+      const usedCount = mockData.filter(item => item.workScoreRuleId === id).length;
+      const detail = usedCount > 0
+        ? `\n\n이미 ${usedCount}건의 업무에 이 점수 기준이 저장되어 있습니다.\n기존 업무점수와 점수 기준명은 그대로 유지됩니다.`
+        : '';
+      if (!confirm(`'${rule.name}' 항목을 점수 기준표에서 삭제하시겠습니까?${detail}\n\n삭제 후 신규 요청에서는 이 항목을 자동 판정하지 않습니다.`)) return;
+      scoreRuleData.splice(index, 1);
+      saveScoreRuleData();
+      if (editingScoreRuleId === id) resetScoreRuleForm();
+      renderScoreRuleManager();
+    }
+
+    function deactivateScoreRule(id) {
+      const rule=scoreRuleData.find(r=>r.id===id); if (!rule) return;
+      if (!confirm(`'${rule.name}' 항목을 사용중지하시겠습니까?\n\n기존 업무점수는 유지되고 신규 요청의 자동 판정에서만 제외됩니다.`)) return;
+      rule.status='사용중지'; saveScoreRuleData(); renderScoreRuleManager();
+    }
+
+    function reactivateScoreRule(id) {
+      const rule=scoreRuleData.find(r=>r.id===id); if (!rule) return;
+      rule.status='사용중'; saveScoreRuleData(); renderScoreRuleManager();
+    }
+
+    function renderWorkload(data) {
+      const groups = getRequestGroups(data);
+      const rows = memberData.map(member => {
+        const name = member.name;
+        const items = data.filter(x => getMemberNameByItem(x) === name || ((!x.handlerId) && (x.handlerName || '') === name));
+        const reqs = new Set(items.map(x => x.requestId || x.id));
+        const completed = items.filter(x => getArrivalStatus(x) === '입고완료').length;
+        const progress = items.filter(x => ['설계중','가공중','완료','입고대기','부분입고'].includes(x.status) && getArrivalStatus(x) !== '입고완료').length;
+        const score = items.reduce((sum,x) => sum + getWorkScore(x), 0);
+        return {name, status:member.status, requests:reqs.size, tools:items.length, progress, completed, score};
+      });
+      const tbody = document.getElementById('workload-table-body');
+      if (tbody) tbody.innerHTML = rows.map(r => `<tr class="hover:bg-slate-50"><td class="px-4 py-3 font-bold">${escapeHtml(r.name)} ${r.status !== '사용중' ? `<span class="ml-1 text-[9px] text-slate-400">(${r.status})</span>` : ''}${r.name===currentUser?' <span class="text-[9px] text-indigo-600">(현재)</span>':''}</td><td class="text-center">${r.requests}</td><td class="text-center">${r.tools}</td><td class="text-center text-blue-600 font-bold">${r.progress}</td><td class="text-center text-emerald-600 font-bold">${r.completed}</td><td class="text-center text-amber-600 font-black">${r.score}</td></tr>`).join('');
+      const mine = rows.find(r => r.name === currentUser) || {requests:0,tools:0,completed:0,score:0};
+      document.getElementById('my-kpi-requests').innerText = mine.requests;
+      document.getElementById('my-kpi-tools').innerText = mine.tools;
+      document.getElementById('my-kpi-completed').innerText = mine.completed;
+      document.getElementById('my-kpi-score').innerText = mine.score;
+    }
+
+    function openMemberManager() { if (authUser?.role !== '관리자') { alert('담당자 관리는 관리자만 사용할 수 있습니다.'); return; } renderMemberManager(); openModal('member-modal'); }
+
+    function renderMemberManager() {
+      const el = document.getElementById('member-list');
+      if (!el) return;
+      el.innerHTML = memberData.map(m => {
+        const badge = m.status === '사용중' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (m.status === '사용중지' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200');
+        const actions = m.status === '사용중'
+          ? `<button onclick="editMember('${m.id}')" class="px-2 py-1 text-[10px] border border-slate-200 rounded-md hover:bg-slate-50 font-bold">수정</button><button onclick="deactivateMember('${m.id}')" class="px-2 py-1 text-[10px] border border-amber-200 text-amber-700 rounded-md hover:bg-amber-50 font-bold">사용중지</button><button onclick="retireMember('${m.id}')" class="px-2 py-1 text-[10px] border border-rose-200 text-rose-700 rounded-md hover:bg-rose-50 font-bold">퇴사</button>`
+          : `<button onclick="editMember('${m.id}')" class="px-2 py-1 text-[10px] border border-slate-200 rounded-md hover:bg-slate-50 font-bold">수정</button><button onclick="reactivateMember('${m.id}')" class="px-2 py-1 text-[10px] border border-emerald-200 text-emerald-700 rounded-md hover:bg-emerald-50 font-bold">다시 활성화</button>${getOpenWorkCount(m.id) ? `<button onclick="transferMemberWork('${m.id}')" class="px-2 py-1 text-[10px] border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-50 font-bold">업무 인수</button>` : ''}`;
+        return `<div class="grid grid-cols-[1fr_100px_240px] items-center px-4 py-3 gap-2"><div><div class="font-bold text-xs text-slate-800">${escapeHtml(m.name)}</div><div class="text-[9px] text-slate-400">${m.id}</div></div><div><span class="inline-flex px-2 py-1 rounded-full border text-[9px] font-bold ${badge}">${m.status}</span></div><div class="flex justify-end gap-1 flex-wrap">${actions}</div></div>`;
+      }).join('');
+    }
+
+    function addMember() {
+      const input = document.getElementById('member-name-input');
+      const name = input.value.trim();
+      if (!name) { alert('담당자 이름을 입력해 주세요.'); return; }
+      if (memberData.some(m => m.name === name)) { alert('이미 등록된 담당자입니다.'); return; }
+      const maxNo = memberData.reduce((mx,m) => Math.max(mx, Number(String(m.id).replace(/\D/g,'')) || 0), 0);
+      memberData.push({ id:`M${String(maxNo+1).padStart(3,'0')}`, name, status:'사용중', createdAt:new Date().toISOString().slice(0,10) });
+      saveMemberData(); input.value=''; refreshHandlerOptions(); renderMemberManager(); renderApp();
+    }
+
+    function editMember(id) {
+      const m = getMemberById(id); if (!m) return;
+      const newName = prompt(`담당자 이름을 수정합니다.\n\n현재 이름: ${m.name}`, m.name);
+      if (newName === null) return;
+      const name = newName.trim();
+      if (!name || name === m.name) return;
+      if (memberData.some(x => x.id !== id && x.name === name)) { alert('이미 사용 중인 이름입니다.'); return; }
+      const oldName = m.name; m.name = name;
+      if (currentUser === oldName) { currentUser = name; localStorage.setItem('jigHubCurrentUser', currentUser); }
+      // 기존 데이터는 handlerId를 기준으로 새 이름을 표시하므로 과거 실적도 같은 사람으로 유지됩니다.
+      mockData.forEach(item => { if (item.handlerId === id) item.handlerName = name; });
+      saveMemberData(); persistLocalHubState(); refreshHandlerOptions(); renderMemberManager(); renderApp();
+    }
+
+    function deactivateMember(id) {
+      const m = getMemberById(id); if (!m) return;
+      if (!confirm(`${m.name} 담당자를 사용중지 처리하시겠습니까?\n\n기존 작업 기록은 유지되고 신규 요청에는 표시되지 않습니다.`)) return;
+      m.status = '사용중지';
+      if (currentUser === m.name) { currentUser = activeMembers()[0]?.name || ''; localStorage.setItem('jigHubCurrentUser', currentUser); }
+      saveMemberData(); refreshHandlerOptions(); renderMemberManager(); renderApp();
+    }
+
+    function reactivateMember(id) {
+      const m = getMemberById(id); if (!m) return;
+      m.status = '사용중'; saveMemberData();
+      if (!currentUser) { currentUser = m.name; localStorage.setItem('jigHubCurrentUser', currentUser); }
+      refreshHandlerOptions(); renderMemberManager(); renderApp();
+    }
+
+    function retireMember(id) {
+      const m = getMemberById(id); if (!m) return;
+      const open = getOpenWorkCount(id);
+      const msg = open > 0 ? `${m.name} 담당자를 퇴사 처리하시겠습니까?\n\n현재 미완료 업무 ${open}건이 있습니다.\n퇴사 처리 후 '업무 인수'에서 다른 담당자에게 넘길 수 있습니다.` : `${m.name} 담당자를 퇴사 처리하시겠습니까?\n\n과거 실적과 기록은 삭제되지 않습니다.`;
+      if (!confirm(msg)) return;
+      m.status = '퇴사';
+      if (currentUser === m.name) { currentUser = activeMembers()[0]?.name || ''; localStorage.setItem('jigHubCurrentUser', currentUser); }
+      saveMemberData(); refreshHandlerOptions(); renderMemberManager(); renderApp();
+    }
+
+    function getOpenWorkCount(memberId) {
+      return mockData.filter(item => item.handlerId === memberId && getArrivalStatus(item) !== '입고완료').length;
+    }
+
+    function transferMemberWork(fromId) {
+      const from = getMemberById(fromId);
+      const targets = activeMembers().filter(m => m.id !== fromId);
+      if (!from || !targets.length) { alert('업무를 인수할 사용중 담당자가 없습니다.'); return; }
+      const targetText = targets.map((m,i)=>`${i+1}. ${m.name}`).join('\n');
+      const answer = prompt(`업무 인수 담당자를 선택하세요.\n\n${targetText}\n\n번호를 입력하세요.`, '1');
+      if (answer === null) return;
+      const idx = Number(answer)-1;
+      const target = targets[idx];
+      if (!target) { alert('올바른 번호를 입력해 주세요.'); return; }
+      const openItems = mockData.filter(item => item.handlerId === fromId && getArrivalStatus(item) !== '입고완료');
+      if (!openItems.length) { alert('인수할 미완료 업무가 없습니다.'); return; }
+      if (!confirm(`${from.name}의 미완료 업무 ${openItems.length}건을 ${target.name}에게 인수 처리하시겠습니까?\n\n완료된 과거 실적은 ${from.name}에게 그대로 남습니다.`)) return;
+      openItems.forEach(item => { item.handlerId = target.id; item.handlerName = target.name; addHistory(item.requestId || item.id, currentUser || target.name, '업무 인수', `${from.name} → ${target.name} · ${item.toolName || '치공구'}`); });
+      persistLocalHubState(); renderMemberManager(); renderApp();
+      alert(`업무 인수가 완료되었습니다.\n\n인수 담당자: ${target.name}\n인수 건수: ${openItems.length}건`);
+    }
+
+    function renderHistory() {
+      const el = document.getElementById('history-list');
+      if (!el) return;
+      const list = historyData.slice(0, 100);
+      el.innerHTML = list.length ? list.map(h => `<div class="px-5 py-3 flex items-center gap-4"><div class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-pen text-[10px]"></i></div><div class="flex-1"><div class="text-xs font-bold text-slate-800">${escapeHtml(h.action)} <span class="font-mono text-indigo-600 ml-2">${escapeHtml(h.requestId)}</span></div><div class="text-[11px] text-slate-500 mt-1">${escapeHtml(h.detail || '')}</div></div><div class="text-right"><div class="text-[11px] font-bold">${escapeHtml(h.actor)}</div><div class="text-[10px] text-slate-400">${escapeHtml(h.timestamp)}</div></div></div>`).join('') : '<div class="p-10 text-center text-slate-400 text-xs">아직 변경 이력이 없습니다.</div>';
+    }
+
+    function drillDownCategory(category) {
+      subCategoryFilter = category;
+      document.getElementById("sub-category-title").innerText = category;
+      document.getElementById("sub-view-banner").classList.remove("hidden");
+      switchMainTab("list");
+      renderApp();
+    }
+
+    function clearSubFilter() {
+      subCategoryFilter = null;
+      document.getElementById("sub-view-banner").classList.add("hidden");
+      renderApp();
+    }
+
+    function handleGlobalSearch(e) {
+      searchKeyword = e.target.value;
+      renderApp();
+    }
+
+    function exportToExcel() {
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+      csvContent += "관리ID,시즌,카테고리,모델명,라운드,사이즈,용도,치공구명,수량,요청자,실제담당자,발주서형태,제작상태,입고상태,입고수량,입고일,검수상태,입고비고,긴급여부,입고요청일\n";
+
+      mockData.forEach(row => {
+        csvContent += `${row.id},${row.season},${row.category},"${row.model}",${row.round},${row.size},${row.purpose},"${row.toolName}",${row.quantity},${row.requesterName},${row.handlerName || ""},${row.poStatus},${row.status},${getArrivalStatus(row)},${row.receivedQty || 0},${row.receivedDate || ''},${row.inspectionStatus || ''},"${String(row.receivingNote || '').replace(/"/g,'""')}",${row.isUrgent?'긴급':'일반'},${row.dueDate}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `치공구_요청_관리_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function handleBackdropClick(event, modalId) {
+      if (event.target.id === modalId) closeModal(modalId);
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function toggleToolMoreFromButton(button, event) {
+      if (event) { event.preventDefault(); event.stopPropagation(); }
+      const requestId = button ? button.getAttribute('data-request-id') : '';
+      toggleToolMore(requestId);
+    }
+
+    function toggleToolMore(requestId) {
+      const key = String(requestId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const panel = document.getElementById(`tool-more-${key}`);
+      const icon = document.getElementById(`tool-more-icon-${key}`);
+      const label = document.getElementById(`tool-more-label-${key}`);
+      if (!panel) return;
+      const willOpen = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !willOpen);
+      if (icon) icon.style.transform = willOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+      if (label) label.textContent = willOpen ? '접기' : '펼쳐보기';
+    }
+
+    function openDetailModal(requestId) {
+      const items = mockData.filter(d => (d.requestId || d.id) === requestId);
+      if (!items.length) return;
+      const item = items[0];
+      const group = getRequestGroups(items)[0];
+      const status = getGroupStatus(group);
+
+      document.getElementById('detail-id').innerText = group.requestId;
+      document.getElementById('detail-category-tag').innerText = group.category;
+
+      const toolRows = group.items.map((tool, idx) => `
+        <div class="flex items-start gap-3 p-3 rounded-lg ${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border border-slate-100">
+          <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[10px]">${idx + 1}</span>
+          <div class="flex-1">
+            <div class="font-bold text-slate-800">${escapeHtml(tool.toolName || '')}</div>
+            <div class="text-[11px] text-slate-500 mt-1">수량: <strong class="text-indigo-600">${escapeHtml(tool.quantity || '')}</strong> · 사이즈: <strong>${escapeHtml(tool.size || group.size || '')}</strong></div>
+          </div>
+          <div class="flex flex-col items-end gap-1">
+            ${getStatusBadge(getArrivalStatus(tool) === '미입고' ? tool.status : getArrivalStatus(tool))}
+            ${getArrivalStatus(tool) === '입고완료' ? `<span class="text-[9px] text-slate-400">${escapeHtml(tool.receivedDate || '')}</span>` : `<button onclick="event.stopPropagation(); openReceiveModal('${escapeHtml(tool.id)}')" class="text-[10px] bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md font-bold"><i class="fa-solid fa-box-open mr-1"></i>입고 처리</button>`}
+          </div>
+        </div>`).join('');
+
+      document.getElementById('detail-modal-content').innerHTML = `
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${escapeHtml(group.season)}</span>
+              <h4 class="font-bold text-slate-900 text-sm mt-1">${escapeHtml(group.model)} (${escapeHtml(group.round)})</h4>
+            </div>
+            ${getStatusBadge(status)}
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-slate-600 pt-2 border-t border-slate-200">
+            <div>용도: <strong class="text-purple-700">${escapeHtml(group.purpose)}</strong></div>
+            <div>사이즈: <strong>${escapeHtml(group.size)}</strong></div>
+            <div>발주서 담당자: <strong>${escapeHtml(group.requesterName || '-')}</strong></div>
+            <div>실제 진행 담당자: <strong class="text-indigo-700">${escapeHtml(group.handlerName || '-')}</strong></div>
+            <div>치공구: <strong>${group.items.length}건</strong></div>
+            <div>접수 형태: <strong>${escapeHtml(group.poStatus)}</strong></div>
+            <div>입고 요청일: <strong>${escapeHtml(group.dueDate)}</strong></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2 gap-2">
+            <span class="font-bold text-slate-700">발주 치공구 내역</span>
+            <div class="flex items-center gap-2">
+              <button onclick="event.stopPropagation(); bulkReceiveComplete('${escapeHtml(group.requestId)}')" class="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md font-bold shadow-sm">
+                <i class="fa-solid fa-boxes-stacked mr-1"></i>일괄 입고 완료
+              </button>
+              <span class="text-[10px] text-slate-400">총 ${group.items.length}건</span>
+            </div>
+          </div>
+          <div class="space-y-1">${toolRows}</div>
+        </div>
+        <div class="p-3 bg-white rounded-xl border border-slate-200">
+          <span class="text-slate-400 block mb-1">요청 상세 사양 및 원문:</span>
+          <p class="text-slate-700 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">${escapeHtml(group.description || '내용 없음')}</p>
+        </div>
+      `;
+
+      document.getElementById('detail-delete-trigger').onclick = () => {
+        closeModal('detail-modal');
+        promptDelete(group.requestId);
+      };
+
+      openModal('detail-modal');
+    }
+
+    function promptDelete(requestId) {
+      const items = mockData.filter(d => (d.requestId || d.id) === requestId);
+      if (!items.length) return;
+      const item = items[0];
+
+      document.getElementById('delete-target-info').innerText =
+        `${requestId} · ${item.model} · 치공구 ${items.length}건 · 요청자 ${item.requesterName}`;
+      document.getElementById('confirm-delete-btn').onclick = () => executeDelete(requestId);
+      openModal('delete-modal');
+    }
+
+    function executeDelete(requestId) {
+      closeModal('delete-modal');
+      closeModal('detail-modal');
+      mockData = mockData.filter(d => (d.requestId || d.id) !== requestId);
+      addHistory(requestId, currentUser, '요청 삭제', '요청 전체 삭제');
+      persistLocalHubState();
+      renderApp();
+    }
+
+    function openCreateModal() {
+      pendingParsedRequest = null;
+      document.getElementById("request-form").reset();
+      document.getElementById("smart-text-input").value = "";
+      document.getElementById("excel-file-input").value = "";
+      document.getElementById("form-unit").innerText = "EA";
+      document.getElementById("form-handler-name").value = currentUser;
+      document.getElementById("form-due-date").value = new Date().toISOString().split('T')[0];
+
+      const status = document.getElementById("excel-parse-status");
+      if (status) {
+        status.className = "hidden rounded-lg border px-3 py-2 text-[11px]";
+        status.innerHTML = "";
+      }
+
+      openModal("form-modal");
+    }
+
+    function getNextRequestId(year) {
+      const prefix = `JIG-${year}-`;
+      let maxNo = 0;
+      mockData.forEach(item => {
+        const id = item.requestId || item.id || '';
+        if (id.startsWith(prefix)) {
+          const m = id.match(/-(\d+)$/);
+          if (m) maxNo = Math.max(maxNo, Number(m[1]));
+        }
+      });
+      return prefix + String(maxNo + 1).padStart(3, '0');
+    }
+
+    function openReceiveModal(itemId) {
+      const item = mockData.find(x => x.id === itemId);
+      if (!item) return;
+      const ordered = parseOrderQty(item.quantity);
+      const received = getReceivedQty(item);
+      document.getElementById('receive-item-id').value = item.id;
+      document.getElementById('receive-request-id').innerText = item.requestId || item.id;
+      document.getElementById('receive-tool-name').innerText = item.toolName || '';
+      document.getElementById('receive-order-qty').innerText = item.quantity || '';
+      document.getElementById('receive-qty').value = Math.max(0, ordered - received);
+      document.getElementById('receive-qty').max = ordered || '';
+      document.getElementById('receive-date').value = item.receivedDate || new Date().toISOString().split('T')[0];
+      document.getElementById('receive-inspection').value = item.inspectionStatus || '정상';
+      document.getElementById('receive-note').value = item.receivingNote || '';
+      document.getElementById('receive-modal-title').innerText = getArrivalStatus(item) === '부분입고' ? '부분 입고 처리' : '치공구 입고 처리';
+      openModal('receive-modal');
+    }
+
+    function bulkReceiveComplete(requestId) {
+      const items = mockData.filter(x => (x.requestId || x.id) === requestId);
+      if (!items.length) return;
+
+      const incomplete = items.filter(item => getArrivalStatus(item) !== '입고완료');
+      if (!incomplete.length) {
+        alert('이미 모든 치공구가 입고 완료 상태입니다.');
+        return;
+      }
+
+      const totalCount = incomplete.length;
+      const message =
+        `현재 요청의 미입고/부분입고 치공구 ${totalCount}건을 일괄 입고 완료 처리하시겠습니까?\n\n` +
+        `처리 대상: ${incomplete.map((item, i) => `${i + 1}. ${item.toolName || '치공구'} (${item.quantity || 0} EA)`).join('\n')}\n\n` +
+        `※ 각 치공구의 발주 수량 전체를 입고 완료로 처리합니다.`;
+
+      if (!confirm(message)) return;
+
+      const receiveDate = new Date().toISOString().split('T')[0];
+      incomplete.forEach(item => {
+        const ordered = parseOrderQty(item.quantity);
+        if (ordered > 0) {
+          item.receivedQty = ordered;
+        } else {
+          item.receivedQty = getReceivedQty(item);
+        }
+        item.arrivalStatus = '입고완료';
+        item.status = '입고완료';
+        item.receivedDate = receiveDate;
+        if (!item.inspectionStatus) item.inspectionStatus = '정상';
+        if (item.receivingNote == null) item.receivingNote = '';
+      });
+
+      addHistory(requestId, currentUser, '입고 완료', `일괄 입고 ${totalCount}건 처리`);
+      persistLocalHubState();
+      renderApp();
+      alert(`일괄 입고 완료 처리되었습니다.\n\n처리 건수: ${totalCount}건\n입고일: ${receiveDate}`);
+      openDetailModal(requestId);
+    }
+
+    function saveReceiveStatus() {
+      const itemId = document.getElementById('receive-item-id').value;
+      const item = mockData.find(x => x.id === itemId);
+      if (!item) return;
+      const ordered = parseOrderQty(item.quantity);
+      const inputQty = Number(document.getElementById('receive-qty').value || 0);
+      const previousQty = getReceivedQty(item);
+      const totalReceived = previousQty + inputQty;
+      if (inputQty < 0) { alert('입고 수량은 0 이상이어야 합니다.'); return; }
+      if (ordered > 0 && totalReceived > ordered) {
+        alert(`입고 수량이 발주 수량을 초과합니다.\n발주: ${ordered}\n기입고: ${previousQty}\n이번 입력 가능: ${ordered - previousQty}`);
+        return;
+      }
+      item.receivedQty = totalReceived;
+      item.receivedDate = document.getElementById('receive-date').value;
+      item.inspectionStatus = document.getElementById('receive-inspection').value;
+      item.receivingNote = document.getElementById('receive-note').value.trim();
+      if (ordered > 0 && totalReceived >= ordered) {
+        item.arrivalStatus = '입고완료';
+        item.status = '입고완료';
+      } else if (totalReceived > 0) {
+        item.arrivalStatus = '부분입고';
+      } else {
+        item.arrivalStatus = '미입고';
+      }
+      addHistory(item.requestId || item.id, currentUser, '입고 처리', `${item.toolName || '치공구'} · ${totalReceived}/${ordered || '-'} 입고`);
+      persistLocalHubState();
+      closeModal('receive-modal');
+      renderApp();
+      const group = getRequestGroups(mockData).find(g => g.requestId === (item.requestId || item.id));
+      alert(`입고 정보가 저장되었습니다.\n\n치공구: ${item.toolName}\n입고: ${totalReceived} / ${ordered || '-'}\n상태: ${getArrivalStatus(item)}`);
+      if (group) openDetailModal(group.requestId);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const year = document.getElementById('year-select').value;
+      const requestId = getNextRequestId(year);
+      const inputCategory = document.getElementById('form-category').value.trim().toUpperCase();
+      const common = {
+        year,
+        requestId,
+        category: inputCategory,
+        season: document.getElementById('form-season').value.trim(),
+        model: document.getElementById('form-model').value.trim(),
+        round: document.getElementById('form-round').value.trim(),
+        size: document.getElementById('form-size').value.trim(),
+        purpose: document.getElementById('form-purpose').value.trim().toUpperCase(),
+        requesterName: document.getElementById('form-requester-name').value.trim(),
+        handlerName: document.getElementById('form-handler-name').value.trim() || currentUser,
+        handlerId: getHandlerIdByName(document.getElementById('form-handler-name').value.trim() || currentUser),
+        poStatus: document.getElementById('form-po-status').value,
+        status: document.getElementById('form-status').value,
+        isUrgent: document.getElementById('form-is-urgent').value === 'true',
+        dueDate: document.getElementById('form-due-date').value,
+        description: document.getElementById('form-description').value
+      };
+
+      let tools = [];
+
+      if (pendingParsedRequest && pendingParsedRequest.tools && pendingParsedRequest.tools.length) {
+        // 첫 번째 치공구는 사용자가 저장 직전에 수정한 내용을 우선 반영합니다.
+        tools.push({
+          name: document.getElementById('form-tool-name').value.trim(),
+          qty: document.getElementById('form-quantity').value || '1',
+          unit: document.getElementById('form-unit').innerText || 'EA',
+          size: common.size
+        });
+
+        // 2번 이후는 메일/엑셀에서 분석된 값을 그대로 유지합니다.
+        pendingParsedRequest.tools.slice(1).forEach(t => tools.push({ ...t }));
+      } else {
+        tools.push({
+          name: document.getElementById('form-tool-name').value.trim(),
+          qty: document.getElementById('form-quantity').value || '1',
+          unit: document.getElementById('form-unit').innerText || 'EA',
+          size: common.size
+        });
+      }
+
+      tools = tools.filter(t => t.name);
+
+      tools.forEach((tool, index) => {
+        mockData.unshift({
+          id: `${requestId}-${String(index + 1).padStart(2, '0')}`,
+          ...common,
+          size: tool.size || common.size,
+          toolName: tool.name,
+          quantity: `${tool.qty || 1} ${tool.unit || 'EA'}`,
+          ...calculateScoreFields(tool.name, Number(tool.qty || 1)),
+          arrivalStatus: "미입고", receivedQty: 0, receivedDate: "", inspectionStatus: "", receivingNote: ""
+        });
+      });
+
+      addHistory(requestId, common.handlerName, "요청 등록", `치공구 ${tools.length}건 등록`);
+      pendingParsedRequest = null;
+      persistLocalHubState();
+      closeModal('form-modal');
+      renderApp();
+
+      alert(`발주 요청이 저장되었습니다.\n\n요청 ID: ${requestId}\n발주서 담당자: ${common.requesterName}\n실제 진행 담당자: ${common.handlerName}\n치공구: ${tools.length}건\n\n여러 치공구가 하나의 요청 ID로 묶였습니다.`);
+    }
+  </script>
+<div class="fixed bottom-3 right-4 z-20 text-[10px] bg-white/90 border border-slate-200 shadow-sm rounded-full px-3 py-1 text-slate-500">v5.6 · 로그인/권한/자동 로그인 · 담당자/진행담당자 분리 · 치공구 점수 관리</div>
+</body>
+</html>
